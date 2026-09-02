@@ -413,6 +413,17 @@ export class TaskController {
       if (!task) return res.status(404).json({ error: 'Task not found.' });
       if (!assignee) return res.status(404).json({ error: 'User not found.' });
 
+      const hasAccess = await hasProjectAccess(task.project, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
+      }
+
+      const project = await Project.findById(task.project).select('members').lean();
+      const isMember = (project?.members || []).some(m => m.toString() === assignee._id.toString());
+      if (!isMember) {
+        return res.status(400).json({ error: `${assignee.name} is not a member of this project.` });
+      }
+
       if (!task.assignees.some(a => a.toString() === userId.toString())) {
         task.assignees.push(assignee._id);
         await task.save();
@@ -443,6 +454,11 @@ export class TaskController {
 
       if (!task) return res.status(404).json({ error: 'Task not found.' });
       if (!assignee) return res.status(404).json({ error: 'User not found.' });
+
+      const hasAccess = await hasProjectAccess(task.project, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
+      }
 
       task.assignees = task.assignees.filter(a => a.toString() !== userId.toString());
       await task.save();
@@ -480,6 +496,14 @@ export class TaskController {
 
       if (!task || !blockerTask) {
         return res.status(404).json({ error: 'Task or blocker task not found.' });
+      }
+
+      const [canSeeTask, canSeeBlocker] = await Promise.all([
+        hasProjectAccess(task.project._id, req.user),
+        hasProjectAccess(blockerTask.project._id, req.user)
+      ]);
+      if (!canSeeTask || !canSeeBlocker) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
       }
 
       // Check for circular dependency
@@ -520,6 +544,11 @@ export class TaskController {
 
       if (!task) return res.status(404).json({ error: 'Task not found.' });
 
+      const hasAccess = await hasProjectAccess(task.project, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
+      }
+
       task.blockers = task.blockers.filter(b => b.toString() !== blockerId.toString());
       await task.save();
 
@@ -549,6 +578,11 @@ export class TaskController {
       const task = await Task.findById(taskId);
       if (!task) {
         return res.status(404).json({ error: 'Task not found.' });
+      }
+
+      const hasAccess = await hasProjectAccess(task.project, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
       }
 
       await AuditService.logActivity({
