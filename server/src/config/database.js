@@ -44,8 +44,17 @@ export function isUsingInMemoryFallback() {
  * MONGODB_URI has been set - a broken URI must still fail loudly.
  */
 async function startInMemoryFallback() {
-  const { MongoMemoryServer } = await import('mongodb-memory-server');
-  inMemoryServer = await MongoMemoryServer.create();
+  let MongoMemoryServer;
+  try {
+    ({ MongoMemoryServer } = await import('mongodb-memory-server'));
+    inMemoryServer = await MongoMemoryServer.create();
+  } catch (err) {
+    console.error('❌ Could not start the in-memory fallback database either:', err.message);
+    console.error('   It downloads a MongoDB binary on first use, so it needs network access once.');
+    console.error('   Set MONGODB_URI in .env to a reachable database instead, or start a local MongoDB.');
+    throw err;
+  }
+
   const conn = await mongoose.connect(inMemoryServer.getUri(), { maxPoolSize: 10 });
   console.warn('⚠️  No MONGODB_URI set and no local MongoDB reachable.');
   console.warn('   Started a temporary in-memory database. Data is discarded when the server stops.');
@@ -75,7 +84,8 @@ export async function initDatabase(uri = MONGODB_URI) {
     // This is the only log a crash-looping deploy leaves behind, so make it
     // say what to check rather than just what failed.
     if (!process.env.MONGODB_URI) {
-      console.error('   MONGODB_URI is not set — the default localhost URI cannot work on a hosted instance.');
+      console.error(`   MONGODB_URI is not set, so the default ${MONGODB_URI} was used and nothing is listening there.`);
+      console.error('   Set MONGODB_URI in .env, or start a local MongoDB.');
     } else if (/ENOTFOUND|ESERVFAIL|querySrv/i.test(err.message)) {
       console.error('   The cluster hostname did not resolve. Check the host in MONGODB_URI, and that the Atlas cluster is not paused.');
     } else if (/authentication failed|bad auth/i.test(err.message)) {
