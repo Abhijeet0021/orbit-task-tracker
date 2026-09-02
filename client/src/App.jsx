@@ -18,8 +18,21 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-xs font-semibold">
-        Authenticating...
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white text-xs font-semibold gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <span>Authenticating...</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+          }}
+          className="text-slate-500 hover:text-slate-300 text-[11px] underline transition-colors cursor-pointer mt-2"
+        >
+          Taking too long? Click to reset session
+        </button>
       </div>
     );
   }

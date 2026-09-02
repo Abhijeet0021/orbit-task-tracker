@@ -20,10 +20,16 @@ async function request(endpoint, options = {}) {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+    clearTimeout(timeoutId);
 
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status} ${response.statusText}`;
@@ -38,11 +44,18 @@ async function request(endpoint, options = {}) {
     throw new ApiError(response.status, errorMessage, errorData);
   }
 
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return response.json();
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    }
+    return {};
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new ApiError(408, 'Request timed out. Please check your connection or try again.');
+    }
+    throw err;
   }
-  return {};
 }
 
 export const api = {
