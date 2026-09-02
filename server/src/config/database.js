@@ -30,6 +30,29 @@ export function normalizeMongoUri(uri) {
   }
 }
 
+let inMemoryServer = null;
+
+/** True when this process fell back to a throwaway in-memory MongoDB. */
+export function isUsingInMemoryFallback() {
+  return inMemoryServer !== null;
+}
+
+/**
+ * Development convenience: with no MONGODB_URI configured and nothing listening
+ * on localhost:27017, start a throwaway in-memory MongoDB so `npm run dev`
+ * works from a fresh clone. Never used in production, and never used when a
+ * MONGODB_URI has been set - a broken URI must still fail loudly.
+ */
+async function startInMemoryFallback() {
+  const { MongoMemoryServer } = await import('mongodb-memory-server');
+  inMemoryServer = await MongoMemoryServer.create();
+  const conn = await mongoose.connect(inMemoryServer.getUri(), { maxPoolSize: 10 });
+  console.warn('⚠️  No MONGODB_URI set and no local MongoDB reachable.');
+  console.warn('   Started a temporary in-memory database. Data is discarded when the server stops.');
+  console.warn('   Set MONGODB_URI in .env to use a real database.');
+  return conn;
+}
+
 export async function initDatabase(uri = MONGODB_URI) {
   try {
     if (mongoose.connection.readyState === 1) {
@@ -64,6 +87,13 @@ export async function initDatabase(uri = MONGODB_URI) {
     if (process.env.NODE_ENV === 'production') {
       process.exit(1);
     }
+
+    // Only when nothing was configured at all - an explicitly set URI that
+    // fails is a real error and must surface.
+    if (!process.env.MONGODB_URI && uri === MONGODB_URI) {
+      return startInMemoryFallback();
+    }
+
     throw err;
   }
 }
@@ -71,5 +101,9 @@ export async function initDatabase(uri = MONGODB_URI) {
 export async function closeDatabase() {
   if (mongoose.connection.readyState !== 0) {
     await mongoose.disconnect();
+  }
+  if (inMemoryServer) {
+    await inMemoryServer.stop();
+    inMemoryServer = null;
   }
 }
