@@ -9,8 +9,6 @@ import { router } from './routes/index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-initDatabase();
-
 const app = express();
 const PORT = process.env.PORT || 5001;
 
@@ -49,17 +47,28 @@ app.use((err, req, res, next) => {
   });
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Task Tracker API Server running on port ${PORT}`);
-});
+async function startServer() {
+  await initDatabase();
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`\n⚠️  Port ${PORT} is already in use by another process!`);
-    console.error(`   To free port ${PORT}, run: lsof -ti :${PORT} | xargs kill -9\n`);
-    process.exit(1);
-  }
-  throw err;
-});
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 Task Tracker API Server running on port ${PORT}`);
+  });
 
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n⚠️  Port ${PORT} is already in use by another process!`);
+      console.error(`   To free port ${PORT}, run: lsof -ti :${PORT} | xargs kill -9\n`);
+      process.exit(1);
+    }
+    throw err;
+  });
+
+  return server;
+}
+
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export { app, startServer };
 export default app;

@@ -21,5 +21,15 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, '../dist/client'),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-charts': ['recharts'],
+          'vendor-dnd': ['@hello-pangea/dnd'],
+          'vendor-icons': ['lucide-react']
+        }
+      }
+    }
   },
 });

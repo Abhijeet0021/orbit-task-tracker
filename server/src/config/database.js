@@ -25,7 +25,12 @@ export async function initDatabase(uri = MONGODB_URI) {
     }
 
     mongoose.set('strictQuery', false);
-    const conn = await mongoose.connect(cleanUri);
+    const conn = await mongoose.connect(cleanUri, {
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
     console.log(`🌿 Connected to MongoDB at: ${conn.connection.host || 'local/memory'}`);
     return conn;
   } catch (err) {
