@@ -77,7 +77,7 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
     { id: 'nav-mytasks', title: 'My Assigned Tasks', subtitle: 'Work assigned across all projects', icon: CheckSquare, action: () => { navigate('/my-tasks'); onClose(); } },
     { id: 'nav-alerts', title: 'Overdue Alerts', subtitle: 'Urgent overdue task alerts', icon: AlertTriangle, action: () => { navigate('/alerts'); onClose(); } },
     { id: 'nav-activity', title: 'Global Activity Feed', subtitle: 'Real-time immutable audit trail', icon: Activity, action: () => { navigate('/activity'); onClose(); } },
-    { id: 'action-export', title: 'Export Filtered CSV', subtitle: 'Stream current tasks to spreadsheet', icon: Download, action: () => { window.open(api.getExportCsvUrl(), '_blank'); onClose(); } },
+    { id: 'action-export', title: 'Export Filtered CSV', subtitle: 'Stream current tasks to spreadsheet', icon: Download, action: () => { api.downloadTasksCsv().catch(err => console.error('CSV export failed', err)); onClose(); } },
     { id: 'switch-manager', title: 'Switch to Sarah Connor (Manager)', subtitle: 'Full portfolio & member admin access', icon: UserCheck, action: async () => { await switchPersona('manager@acme.com'); onClose(); navigate('/'); } },
     { id: 'switch-m1', title: 'Switch to Alex Rivera (Member)', subtitle: 'Assigned to Alpha, Billing, Legacy', icon: UserCheck, action: async () => { await switchPersona('member1@acme.com'); onClose(); navigate('/'); } },
     { id: 'switch-m2', title: 'Switch to Devon Vance (Member)', subtitle: 'Assigned to Alpha, Mobile', icon: UserCheck, action: async () => { await switchPersona('member2@acme.com'); onClose(); navigate('/'); } },
@@ -124,7 +124,7 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
               <X className="w-4 h-4" />
             </button>
           )}
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-slate-200/80 text-[11px] font-bold text-slate-600">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-slate-200/80 text-xs font-bold text-slate-600">
             ESC
           </kbd>
         </div>
@@ -134,7 +134,7 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
           {/* Tasks Section */}
           {tasks.length > 0 && (
             <div className="space-y-1">
-              <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <p className="px-2 text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <ListTodo className="w-3.5 h-3.5 text-blue-500" />
                 Matching Tasks ({tasks.length})
               </p>
@@ -149,13 +149,13 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
                     className="w-full text-left p-2.5 rounded-xl hover:bg-blue-50/70 transition flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="font-mono text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-blue-100 group-hover:text-blue-800 transition shrink-0">
+                      <span className="font-mono text-[11px] font-extrabold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-blue-100 group-hover:text-blue-800 transition shrink-0">
                         {task.code}
                       </span>
-                      <span className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-700">
+                      <span className="text-sm font-bold text-slate-900 truncate group-hover:text-blue-700">
                         {task.title}
                       </span>
-                      <span className="text-[11px] text-slate-400 hidden sm:inline truncate">
+                      <span className="text-xs text-slate-400 hidden sm:inline truncate">
                         • {task.project_name}
                       </span>
                     </div>
@@ -172,7 +172,7 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
           {/* Projects Section */}
           {filteredProjects.length > 0 && (
             <div className="space-y-1">
-              <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <p className="px-2 text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <FolderKanban className="w-3.5 h-3.5 text-indigo-500" />
                 Projects ({filteredProjects.length})
               </p>
@@ -187,14 +187,14 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
                     className="w-full text-left p-2.5 rounded-xl hover:bg-indigo-50/70 transition flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
+                      <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
                         {p.key}
                       </span>
-                      <span className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-700">
+                      <span className="text-sm font-bold text-slate-900 truncate group-hover:text-indigo-700">
                         {p.name}
                       </span>
                     </div>
-                    <span className="text-[11px] font-medium text-slate-400 group-hover:text-indigo-600 flex items-center gap-1">
+                    <span className="text-xs font-medium text-slate-400 group-hover:text-indigo-600 flex items-center gap-1">
                       Open Project &rarr;
                     </span>
                   </button>
@@ -206,7 +206,7 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
           {/* Quick Actions */}
           {filteredActions.length > 0 && (
             <div className="space-y-1">
-              <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <p className="px-2 text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 Quick Actions & Navigation
               </p>
@@ -222,10 +222,10 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
                         <action.icon className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-900 group-hover:text-blue-700 truncate">
+                        <p className="text-sm font-bold text-slate-900 group-hover:text-blue-700 truncate">
                           {action.title}
                         </p>
-                        <p className="text-[11px] text-slate-400 truncate">
+                        <p className="text-xs text-slate-400 truncate">
                           {action.subtitle}
                         </p>
                       </div>
@@ -239,7 +239,7 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
           <span className="text-slate-400">Press <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-bold">Cmd</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-bold">K</kbd> anywhere</span>
           <span>Click outside or press ESC to exit</span>
         </div>

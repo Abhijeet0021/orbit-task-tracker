@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTaskModal } from '../hooks/useTaskModal.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge.jsx';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal.jsx';
@@ -29,6 +30,7 @@ export const TasksListPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -51,9 +53,18 @@ export const TasksListPage = () => {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isExecutingBulk, setIsExecutingBulk] = useState(false);
 
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const { taskId: selectedTaskId, isTaskOpen, openTask, closeTask } = useTaskModal();
   const [activePreset, setActivePreset] = useState('ALL');
+
+  // Typing sent one request per keystroke. Debounce the term that actually
+  // drives the query, and reset to the first page when it changes.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(current => (current === searchInput ? current : searchInput));
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const loadFilterData = async () => {
     try {
@@ -68,7 +79,10 @@ export const TasksListPage = () => {
     }
   };
 
+  const requestSeq = useRef(0);
+
   const loadTasks = async () => {
+    const seq = ++requestSeq.current;
     try {
       setLoading(true);
       const res = await api.getTasks({
@@ -83,13 +97,16 @@ export const TasksListPage = () => {
         page,
         limit: 15
       });
+      // A slower earlier request must not overwrite a newer result.
+      if (seq !== requestSeq.current) return;
       setTasks(res.tasks || []);
       setPagination(res.pagination || { total: 0, page: 1, limit: 15, totalPages: 1 });
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       console.error('Failed to load tasks', err);
-      toast.error('Failed to retrieve task data from server');
+      toast.error(err.message || 'Could not load tasks from the server.');
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   };
 
@@ -154,24 +171,28 @@ export const TasksListPage = () => {
     }
   };
 
-  const handleExportCsv = () => {
-    const url = api.getExportCsvUrl({
-      q: search || undefined,
-      project_id: selectedProjectId || undefined,
-      status: selectedStatus || undefined,
-      priority: selectedPriority || undefined,
-      assignee_id: selectedAssigneeId || undefined,
-      overdue: isOverdueOnly || undefined,
-      sort_by: sortBy,
-      sort_order: sortOrder,
-    });
-    toast.info('Downloading CSV export...');
-    window.open(url, '_blank');
+  const handleExportCsv = async () => {
+    toast.info('Preparing CSV export...');
+    try {
+      await api.downloadTasksCsv({
+        q: search || undefined,
+        project_id: selectedProjectId || undefined,
+        status: selectedStatus || undefined,
+        priority: selectedPriority || undefined,
+        assignee_id: selectedAssigneeId || undefined,
+        overdue: isOverdueOnly || undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      });
+    } catch (err) {
+      toast.error(err.message || 'Could not export the current view.');
+    }
   };
 
   const applyPreset = (presetKey) => {
     setActivePreset(presetKey);
     setPage(1);
+    setSearchInput('');
     setSearch('');
     setSelectedProjectId('');
 
@@ -221,14 +242,14 @@ export const TasksListPage = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Cross-Project Task Tracker</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             Server-side search, filtering, multi-sort, pagination, and atomic bulk operations.
           </p>
         </div>
 
         <button
           onClick={handleExportCsv}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 hover:border-slate-300 transition shadow-xs"
+          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 hover:border-slate-300 transition shadow-xs"
           title="Export current filtered view to CSV"
         >
           <Download className="w-3.5 h-3.5 text-slate-500" />
@@ -238,7 +259,7 @@ export const TasksListPage = () => {
 
       {/* Smart Filter Presets */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mr-1 flex items-center gap-1">
           <Sparkles className="w-3 h-3 text-amber-500" />
           Quick Views:
         </span>
@@ -253,7 +274,7 @@ export const TasksListPage = () => {
           <button
             key={p.key}
             onClick={() => applyPreset(p.key)}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold transition shadow-2xs ${
+            className={`px-3 py-1.5 rounded-full text-sm font-bold transition shadow-2xs ${
               activePreset === p.key
                 ? 'bg-blue-600 text-white shadow-xs scale-102'
                 : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
@@ -271,13 +292,10 @@ export const TasksListPage = () => {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
             <input
               type="text"
-              value={search}
-              onChange={e => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
               placeholder="Search title, description, or code..."
-              className="w-full pl-10 pr-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
+              className="w-full pl-10 pr-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
             />
           </div>
 
@@ -288,7 +306,7 @@ export const TasksListPage = () => {
                 setSelectedProjectId(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-hidden font-medium"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 outline-hidden font-medium"
             >
               <option value="">All Projects</option>
               {projects.map(p => (
@@ -306,7 +324,7 @@ export const TasksListPage = () => {
                 setSelectedStatus(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-hidden font-medium"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 outline-hidden font-medium"
             >
               <option value="">All Statuses</option>
               <option value="BACKLOG">Backlog</option>
@@ -324,7 +342,7 @@ export const TasksListPage = () => {
                 setSelectedAssigneeId(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-hidden font-medium"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 outline-hidden font-medium"
             >
               <option value="">All Assignees</option>
               <option value="unassigned">Unassigned</option>
@@ -343,7 +361,7 @@ export const TasksListPage = () => {
                 setSelectedPriority(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-700 outline-hidden font-medium"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700 outline-hidden font-medium"
             >
               <option value="">All Priorities</option>
               <option value="LOW">Low</option>
@@ -354,7 +372,7 @@ export const TasksListPage = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs text-slate-600">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-sm text-slate-600">
           <label className="flex items-center gap-2 cursor-pointer font-semibold">
             <input
               type="checkbox"
@@ -375,7 +393,7 @@ export const TasksListPage = () => {
             <select
               value={sortBy}
               onChange={e => setSortBy(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs outline-hidden"
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm outline-hidden"
             >
               <option value="updated_at">Last Updated</option>
               <option value="due_date">Due Date</option>
@@ -399,17 +417,17 @@ export const TasksListPage = () => {
       {selectedTaskIds.length > 0 && (
         <div className="p-4 rounded-2xl bg-slate-900 text-white shadow-xl flex flex-wrap items-center justify-between gap-4 animate-in slide-in-from-bottom-2 duration-150">
           <div className="flex items-center gap-3">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500 text-xs font-black">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500 text-sm font-black">
               {selectedTaskIds.length}
             </span>
-            <span className="text-xs font-bold">tasks selected for batch operation</span>
+            <span className="text-sm font-bold">tasks selected for batch operation</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={bulkAction}
               onChange={e => setBulkAction(e.target.value)}
-              className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-xs outline-hidden font-semibold"
+              className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-sm outline-hidden font-semibold"
             >
               <option value="">Select Action...</option>
               <option value="UPDATE_STATUS">Move Status</option>
@@ -422,7 +440,7 @@ export const TasksListPage = () => {
               <select
                 value={bulkStatus}
                 onChange={e => setBulkStatus(e.target.value)}
-                className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-xs outline-hidden"
+                className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-sm outline-hidden"
               >
                 <option value="BACKLOG">Backlog</option>
                 <option value="IN_PROGRESS">In Progress</option>
@@ -436,7 +454,7 @@ export const TasksListPage = () => {
               <select
                 value={bulkUserId}
                 onChange={e => setBulkUserId(e.target.value)}
-                className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-xs outline-hidden"
+                className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-sm outline-hidden"
               >
                 <option value="">Choose User...</option>
                 {users.map(u => (
@@ -450,7 +468,7 @@ export const TasksListPage = () => {
                 type="date"
                 value={bulkDueDate}
                 onChange={e => setBulkDueDate(e.target.value)}
-                className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-xs outline-hidden"
+                className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-sm outline-hidden"
               />
             )}
 
@@ -458,7 +476,7 @@ export const TasksListPage = () => {
               <select
                 value={bulkPriority}
                 onChange={e => setBulkPriority(e.target.value)}
-                className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-xs outline-hidden"
+                className="rounded-xl bg-slate-800 border border-slate-700 text-white px-3 py-1.5 text-sm outline-hidden"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
@@ -470,14 +488,14 @@ export const TasksListPage = () => {
             <button
               onClick={handleExecuteBulk}
               disabled={isExecutingBulk || !bulkAction}
-              className="px-4 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 disabled:opacity-40 transition shadow-xs"
+              className="px-4 py-1.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-500 disabled:opacity-40 transition shadow-xs"
             >
               {isExecutingBulk ? 'Applying...' : 'Apply to Selected'}
             </button>
 
             <button
               onClick={() => setSelectedTaskIds([])}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 text-sm font-semibold hover:bg-slate-700 transition"
             >
               Clear
             </button>
@@ -487,9 +505,10 @@ export const TasksListPage = () => {
 
       {/* Task Table */}
       <div className="rounded-3xl bg-white border border-slate-200 shadow-xs overflow-hidden">
-        <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[54rem] text-left border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+            <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-xs">
               <th className="py-3.5 px-4 w-10">
                 <input
                   type="checkbox"
@@ -543,8 +562,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <div className="flex items-center gap-2.5">
@@ -564,8 +582,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <span className="font-medium text-slate-600">{task.project_name}</span>
@@ -573,8 +590,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <StatusBadge status={task.status} />
@@ -582,8 +598,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <PriorityBadge priority={task.priority} />
@@ -591,15 +606,14 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <div className="flex -space-x-1.5 overflow-hidden">
                       {task.assignees.map(a => (
                         <div
                           key={a.id}
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-white"
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white ring-2 ring-white"
                           style={{ backgroundColor: a.avatar_color || '#3b82f6' }}
                           title={a.name}
                         >
@@ -614,8 +628,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     {task.due_date ? (
@@ -630,8 +643,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     {task.blockers.length > 0 ? (
@@ -656,8 +668,9 @@ export const TasksListPage = () => {
             )}
           </tbody>
         </table>
+        </div>
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4 text-sm">
           <span className="text-slate-500 font-medium">
             Showing matching <span className="font-bold text-slate-900">{tasks.length}</span> of{' '}
             <span className="font-bold text-slate-900">{pagination.total}</span> total tasks
@@ -689,11 +702,8 @@ export const TasksListPage = () => {
 
       <TaskDetailModal
         taskId={selectedTaskId}
-        isOpen={isTaskModalOpen}
-        onClose={() => {
-          setIsTaskModalOpen(false);
-          setSelectedTaskId(null);
-        }}
+        isOpen={isTaskOpen}
+        onClose={closeTask}
         onTaskUpdated={loadTasks}
       />
 

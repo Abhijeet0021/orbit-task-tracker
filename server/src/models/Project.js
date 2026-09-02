@@ -27,6 +27,13 @@ const projectSchema = new mongoose.Schema({
     ref: 'User',
     default: null,
   },
+  // Accountable owner. Distinct from created_by, which records who first
+  // created the project and never changes.
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
   members: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

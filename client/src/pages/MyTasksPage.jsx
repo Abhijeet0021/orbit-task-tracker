@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTaskModal } from '../hooks/useTaskModal.js';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge.jsx';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal.jsx';
 import { Calendar, ShieldAlert } from 'lucide-react';
@@ -9,8 +10,7 @@ export const MyTasksPage = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const { taskId: selectedTaskId, isTaskOpen, openTask, closeTask } = useTaskModal();
 
   const loadMyTasks = async () => {
     if (!user) return;
@@ -38,15 +38,16 @@ export const MyTasksPage = () => {
     <div className="space-y-6 animate-in fade-in duration-200">
       <div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Assigned Tasks</h1>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-sm text-slate-500 mt-1">
           Requirement 5: One consolidated list of everything assigned to you across all projects.
         </p>
       </div>
 
       <div className="rounded-3xl bg-white border border-slate-200 shadow-xs overflow-hidden">
-        <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[54rem] text-left border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+            <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-xs">
               <th className="py-3.5 px-4">Task</th>
               <th className="py-3.5 px-4">Project</th>
               <th className="py-3.5 px-4">Status</th>
@@ -60,8 +61,7 @@ export const MyTasksPage = () => {
               <tr
                 key={task.id}
                 onClick={() => {
-                  setSelectedTaskId(task.id);
-                  setIsTaskModalOpen(true);
+                  openTask(task.id);
                 }}
                 className="hover:bg-blue-50/40 cursor-pointer transition"
               >
@@ -116,15 +116,13 @@ export const MyTasksPage = () => {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <TaskDetailModal
         taskId={selectedTaskId}
-        isOpen={isTaskModalOpen}
-        onClose={() => {
-          setIsTaskModalOpen(false);
-          setSelectedTaskId(null);
-        }}
+        isOpen={isTaskOpen}
+        onClose={closeTask}
         onTaskUpdated={loadMyTasks}
       />
     </div>

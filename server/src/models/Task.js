@@ -36,6 +36,15 @@ const taskSchema = new mongoose.Schema({
     default: 'MEDIUM',
     required: true,
   },
+  // Denormalised severity rank. `priority` is a string, so sorting on it
+  // directly is alphabetical (HIGH, LOW, MEDIUM, URGENT) rather than by
+  // severity. This field is derived from `priority` on every save and is what
+  // the API actually sorts on.
+  priority_rank: {
+    type: Number,
+    default: 2,
+    required: true,
+  },
   due_date: {
     type: String, // Format YYYY-MM-DD
     default: null,
@@ -55,6 +64,15 @@ const taskSchema = new mongoose.Schema({
   }
 });
 
+export const PRIORITY_RANK = { LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4 };
+
+// Mongoose 9 removed callback-style middleware: a hook is called with no
+// arguments and may return a promise. Taking a `next` parameter here throws
+// "next is not a function" on every validate.
+taskSchema.pre('validate', function syncPriorityRank() {
+  this.priority_rank = PRIORITY_RANK[this.priority] ?? PRIORITY_RANK.MEDIUM;
+});
+
 // Primary unique project task code index
 taskSchema.index({ project: 1, task_number: 1 }, { unique: true });
 
@@ -63,6 +81,7 @@ taskSchema.index({ project: 1, status: 1 });
 taskSchema.index({ assignees: 1, status: 1 });
 taskSchema.index({ status: 1, due_date: 1 });
 taskSchema.index({ status: 1, updated_at: -1 });
+taskSchema.index({ priority_rank: -1 });
 
 taskSchema.set('toJSON', {
   transform: (doc, ret) => {

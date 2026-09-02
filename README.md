@@ -62,12 +62,16 @@ task-tracker/
 
 | Persona Name | Email | Role | Accessible Scope | Password |
 | :--- | :--- | :--- | :--- | :--- |
-| **Sarah Connor** | `manager@acme.com` | `MANAGER` | Full portfolio, project archiving, task deletion, member admin | `password123` *(or `Manager123!`)* |
-| **Alex Rivera** | `member1@acme.com` | `MEMBER` | Member of Alpha, Billing, Legacy projects | `password123` *(or `Member123!`)* |
-| **Devon Vance** | `member2@acme.com` | `MEMBER` | Member of Alpha, Mobile projects | `password123` *(or `Member123!`)* |
-| **Elena Rostova** | `member3@acme.com` | `MEMBER` | Member of Billing, Mobile projects | `password123` *(or `Member123!`)* |
+| **Sarah Connor** | `manager@acme.com` | `MANAGER` | Full portfolio, project archiving, task deletion, member admin | `password123` |
+| **Alex Rivera** | `member1@acme.com` | `MEMBER` | Member of Alpha, Billing, Legacy projects | `password123` |
+| **Devon Vance** | `member2@acme.com` | `MEMBER` | Member of Alpha, Mobile projects | `password123` |
+| **Elena Rostova** | `member3@acme.com` | `MEMBER` | Member of Billing, Mobile projects | `password123` |
 
 *(Tip: On the login page, click any of the persona cards on the left to sign in with one click).*
+
+> **Reviewing this submission?** Start with [`SUBMISSION.md`](SUBMISSION.md) for
+> the live URLs, credentials and a note on the free-tier cold start, then
+> [`docs/`](docs/) for architecture, schema and decisions.
 
 ---
 

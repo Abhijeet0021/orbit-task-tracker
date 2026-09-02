@@ -184,6 +184,47 @@ export const api = {
     return `${API_BASE}/tasks/export.csv?${query.toString()}`;
   },
 
+  // The export endpoint is authenticated, so it cannot be opened in a new tab -
+  // a top-level navigation carries no Authorization header. Fetch it with the
+  // bearer token and hand the browser a blob instead.
+  downloadTasksCsv: async (params = {}) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(api.getExportCsvUrl(params), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!response.ok) {
+      let message = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const data = await response.json();
+        if (data?.error) message = data.error;
+      } catch {
+        // Response was not JSON; keep the status line.
+      }
+      throw new ApiError(response.status, message);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = `orbit-tasks-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+
+  getActivityFeed: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.project_id) query.set('project_id', String(params.project_id));
+    if (params.user_id) query.set('user_id', String(params.user_id));
+    if (params.activity_type) query.set('activity_type', params.activity_type);
+    if (params.limit) query.set('limit', String(params.limit));
+
+    return request(`/activities?${query.toString()}`);
+  },
+
   getOverdueAlerts: () => request('/alerts/overdue'),
 
   dismissAlert: (taskId) =>

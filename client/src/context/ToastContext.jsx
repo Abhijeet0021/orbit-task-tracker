@@ -73,7 +73,7 @@ export const ToastProvider = ({ children }) => {
             >
               <IconComponent className={`w-5 h-5 shrink-0 mt-0.5 ${config.iconColor}`} />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold leading-relaxed">{t.message}</p>
+                <p className="text-sm font-bold leading-relaxed">{t.message}</p>
               </div>
               <button
                 onClick={() => removeToast(t.id)}

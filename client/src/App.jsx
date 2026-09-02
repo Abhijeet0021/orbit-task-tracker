@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { AlertProvider } from './context/AlertContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
+import { ConfirmProvider } from './components/common/ConfirmDialog.jsx';
 import { AppLayout } from './components/layout/AppLayout.jsx';
 
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx').then(m => ({ default: m.LoginPage })));
@@ -12,13 +13,14 @@ const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage.jsx').the
 const TasksListPage = lazy(() => import('./pages/TasksListPage.jsx').then(m => ({ default: m.TasksListPage })));
 const MyTasksPage = lazy(() => import('./pages/MyTasksPage.jsx').then(m => ({ default: m.MyTasksPage })));
 const AlertsPage = lazy(() => import('./pages/AlertsPage.jsx').then(m => ({ default: m.AlertsPage })));
+const ActivityFeedPage = lazy(() => import('./pages/ActivityFeedPage.jsx').then(m => ({ default: m.ActivityFeedPage })));
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white text-xs font-semibold gap-3">
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white text-sm font-semibold gap-3">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           <span>Authenticating...</span>
@@ -29,7 +31,7 @@ const ProtectedRoute = ({ children }) => {
             localStorage.removeItem('token');
             window.location.href = '/login';
           }}
-          className="text-slate-500 hover:text-slate-300 text-[11px] underline transition-colors cursor-pointer mt-2"
+          className="text-slate-500 hover:text-slate-300 text-xs underline transition-colors cursor-pointer mt-2"
         >
           Taking too long? Click to reset session
         </button>
@@ -49,8 +51,9 @@ export const App = () => {
     <AuthProvider>
       <AlertProvider>
         <ToastProvider>
+          <ConfirmProvider>
           <Suspense fallback={
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400 text-xs">
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400 text-sm">
               Loading...
             </div>
           }>
@@ -70,10 +73,12 @@ export const App = () => {
                 <Route path="tasks" element={<TasksListPage />} />
                 <Route path="my-tasks" element={<MyTasksPage />} />
                 <Route path="alerts" element={<AlertsPage />} />
+                <Route path="activity" element={<ActivityFeedPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
+          </ConfirmProvider>
         </ToastProvider>
       </AlertProvider>
     </AuthProvider>
