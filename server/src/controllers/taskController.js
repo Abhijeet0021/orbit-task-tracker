@@ -27,65 +27,89 @@ function summarizeForAudit(value) {
   return text.length > AUDIT_VALUE_MAX ? `${text.slice(0, AUDIT_VALUE_MAX - 1)}…` : text;
 }
 
+/**
+ * Build the Mongo filter for the task list and the CSV export from the same
+ * query parameters, so the two cannot drift apart.
+ *
+ * Clauses accumulate in $and rather than as keys on one object: `status` and
+ * the `overdue` flag both constrain status, and assigning them as keys meant
+ * the second silently overwrote the first - asking for overdue tasks In Review
+ * returned every overdue task in every status.
+ */
+async function buildTaskFilter(req) {
+  const user = req.user;
+  const { q, project_id, status, priority, assignee_id, overdue } = req.query;
+  const clauses = [];
+
+  if (user.role !== 'MANAGER') {
+    const userProjects = await Project.find({ members: user.id }).select('_id').lean();
+    const allowedIds = userProjects.map(p => p._id);
+    if (project_id) {
+      if (!allowedIds.some(id => id.toString() === project_id.toString())) {
+        return { $and: [{ _id: null }] }; // matches nothing
+      }
+      clauses.push({ project: project_id });
+    } else {
+      clauses.push({ project: { $in: allowedIds } });
+    }
+  } else if (project_id) {
+    clauses.push({ project: project_id });
+  }
+
+  if (status) clauses.push({ status });
+  if (priority) clauses.push({ priority });
+
+  if (assignee_id) {
+    clauses.push(assignee_id === 'unassigned' ? { assignees: { $size: 0 } } : { assignees: assignee_id });
+  }
+
+  if (overdue === 'true') {
+    const todayStr = new Date().toISOString().split('T')[0];
+    clauses.push({ status: { $ne: 'DONE' } });
+    clauses.push({ due_date: { $ne: null, $lt: todayStr } });
+  }
+
+  if (q && typeof q === 'string' && q.trim()) {
+    clauses.push({ $or: await buildSearchClauses(q.trim()) });
+  }
+
+  return clauses.length > 0 ? { $and: clauses } : {};
+}
+
+/** Regex metacharacters are literal when a person types them into a search box. */
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Free text matches the title and description. A `KEY-123` shaped term also
+ * matches that exact task code, and a bare number matches the task number -
+ * the interface invites people to copy codes, so search has to find them.
+ */
+async function buildSearchClauses(term) {
+  const rx = new RegExp(escapeRegex(term), 'i');
+  const or = [{ title: rx }, { description: rx }];
+
+  const code = term.match(/^([A-Za-z][A-Za-z0-9]{0,7})-(\d{1,9})$/);
+  if (code) {
+    const project = await Project.findOne({ key: code[1].toUpperCase() }).select('_id').lean();
+    if (project) {
+      or.push({ project: project._id, task_number: Number(code[2]) });
+    }
+  } else if (/^\d{1,9}$/.test(term)) {
+    or.push({ task_number: Number(term) });
+  }
+
+  return or;
+}
+
 export class TaskController {
   static async listTasks(req, res, next) {
     try {
-      const user = req.user;
-      const {
-        q,
-        project_id,
-        status,
-        priority,
-        assignee_id,
-        overdue,
-        sort_by = 'updated_at',
-        sort_order = 'desc',
-        page = 1,
-        limit = 20
-      } = req.query;
+      const { sort_by = 'updated_at', sort_order = 'desc', page = 1, limit = 20 } = req.query;
 
-      const filter = {};
-
-      // Project scoping for non-managers
-      if (user.role !== 'MANAGER') {
-        const userProjects = await Project.find({ members: user.id }).select('_id').lean();
-        const allowedIds = userProjects.map(p => p._id);
-        if (project_id) {
-          if (!allowedIds.some(id => id.toString() === project_id.toString())) {
-            return res.json({ tasks: [], pagination: { total: 0, page: 1, limit: Number(limit), totalPages: 0 } });
-          }
-          filter.project = project_id;
-        } else {
-          filter.project = { $in: allowedIds };
-        }
-      } else if (project_id) {
-        filter.project = project_id;
-      }
-
-      if (status) filter.status = status;
-      if (priority) filter.priority = priority;
-
-      if (assignee_id) {
-        if (assignee_id === 'unassigned') {
-          filter.assignees = { $size: 0 };
-        } else {
-          filter.assignees = assignee_id;
-        }
-      }
-
+      const filter = await buildTaskFilter(req);
       const todayStr = new Date().toISOString().split('T')[0];
-      if (overdue === 'true') {
-        filter.due_date = { $ne: null, $lt: todayStr };
-        filter.status = { $ne: 'DONE' };
-      }
-
-      if (q && q.trim()) {
-        const searchRegex = new RegExp(q.trim(), 'i');
-        filter.$or = [
-          { title: searchRegex },
-          { description: searchRegex }
-        ];
-      }
 
       const sortField = SORT_FIELDS[sort_by] || 'updated_at';
       const sortDir = sort_order.toLowerCase() === 'asc' ? 1 : -1;
@@ -675,43 +699,11 @@ export class TaskController {
 
   static async exportCsv(req, res, next) {
     try {
-      const user = req.user;
-      const { q, project_id, status, priority, assignee_id, overdue, sort_by = 'updated_at', sort_order = 'desc' } = req.query;
+      const { sort_by = 'updated_at', sort_order = 'desc' } = req.query;
 
-      const filter = {};
-      if (user.role !== 'MANAGER') {
-        const userProjects = await Project.find({ members: user.id }).select('_id').lean();
-        const allowedIds = userProjects.map(p => p._id);
-        if (project_id) {
-          if (!allowedIds.some(id => id.toString() === project_id.toString())) {
-            res.setHeader('Content-Type', 'text/csv');
-            return res.send('Task ID,Project,Title,Status,Priority,Assignees,Due Date,Created At,Updated At\n');
-          }
-          filter.project = project_id;
-        } else {
-          filter.project = { $in: allowedIds };
-        }
-      } else if (project_id) {
-        filter.project = project_id;
-      }
-
-      if (status) filter.status = status;
-      if (priority) filter.priority = priority;
-      if (assignee_id) {
-        if (assignee_id === 'unassigned') filter.assignees = { $size: 0 };
-        else filter.assignees = assignee_id;
-      }
-
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (overdue === 'true') {
-        filter.due_date = { $ne: null, $lt: todayStr };
-        filter.status = { $ne: 'DONE' };
-      }
-
-      if (q && q.trim()) {
-        const searchRegex = new RegExp(q.trim(), 'i');
-        filter.$or = [{ title: searchRegex }, { description: searchRegex }];
-      }
+      // Identical filtering to the list endpoint, so the export always matches
+      // the view it was taken from.
+      const filter = await buildTaskFilter(req);
 
       const tasks = await Task.find(filter)
         .populate('project', 'key name')
@@ -724,8 +716,13 @@ export class TaskController {
 
       const escapeCsv = (val) => {
         if (val === null || val === undefined) return '""';
-        const str = String(val).replace(/"/g, '""');
-        return `"${str}"`;
+        let str = String(val);
+        // A value starting with a formula character executes when the file is
+        // opened in Excel or Sheets, and any member can name a task.
+        if (/^[=+\-@\t\r]/.test(str)) {
+          str = `'${str}`;
+        }
+        return `"${str.replace(/"/g, '""')}"`;
       };
 
       const headers = ['Task ID', 'Project', 'Title', 'Status', 'Priority', 'Assignees', 'Due Date', 'Created At', 'Updated At'];
