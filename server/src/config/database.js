@@ -11,8 +11,21 @@ export async function initDatabase(uri = MONGODB_URI) {
       return mongoose.connection;
     }
 
+    let cleanUri = uri;
+    if (typeof cleanUri === 'string' && cleanUri.startsWith('mongodb+srv://')) {
+      try {
+        const parsed = new URL(cleanUri);
+        if (parsed.port) {
+          parsed.port = '';
+          cleanUri = parsed.toString();
+        }
+      } catch (e) {
+        cleanUri = cleanUri.replace(/(:\d+)(\/|\?|$)/, '$2');
+      }
+    }
+
     mongoose.set('strictQuery', false);
-    const conn = await mongoose.connect(uri);
+    const conn = await mongoose.connect(cleanUri);
     console.log(`🌿 Connected to MongoDB at: ${conn.connection.host || 'local/memory'}`);
     return conn;
   } catch (err) {
