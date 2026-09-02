@@ -14,8 +14,17 @@ export const AppLayout = () => {
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [ownerId, setOwnerId] = useState('');
+  const [users, setUsers] = useState([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isCreateProjectOpen || users.length > 0) return;
+    api.getUsers()
+      .then(res => setUsers(res.users || []))
+      .catch(err => console.error('Failed to load users for owner picker', err));
+  }, [isCreateProjectOpen, users.length]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -33,11 +42,12 @@ export const AppLayout = () => {
     setError('');
     setSubmitting(true);
     try {
-      await api.createProject({ key, name, description });
+      await api.createProject({ key, name, description, owner_id: ownerId || undefined });
       setIsCreateProjectOpen(false);
       setKey('');
       setName('');
       setDescription('');
+      setOwnerId('');
       window.location.reload();
     } catch (err) {
       setError(err.message || 'Failed to create project.');
@@ -111,6 +121,23 @@ export const AppLayout = () => {
               placeholder="e.g. Cloud Infrastructure Platform"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Owner
+            </label>
+            <select
+              value={ownerId}
+              onChange={e => setOwnerId(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
+            >
+              <option value="">Me (project creator)</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-500 mt-1">The owner is accountable for the project and is always a member of it.</p>
           </div>
 
           <div>

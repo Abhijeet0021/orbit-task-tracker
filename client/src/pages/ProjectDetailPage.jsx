@@ -47,6 +47,7 @@ export const ProjectDetailPage = () => {
 
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [editOwnerId, setEditOwnerId] = useState('');
   const [memberToAdd, setMemberToAdd] = useState('');
 
   const loadData = async () => {
@@ -64,6 +65,7 @@ export const ProjectDetailPage = () => {
 
       setEditName(projRes.project.name);
       setEditDesc(projRes.project.description || '');
+      setEditOwnerId(projRes.project.owner?.id || '');
     } catch (err) {
       console.error('Failed to load project details', err);
     } finally {
@@ -127,7 +129,7 @@ export const ProjectDetailPage = () => {
   const handleEditProject = async (e) => {
     e.preventDefault();
     try {
-      await api.updateProject(projectId, { name: editName, description: editDesc });
+      await api.updateProject(projectId, { name: editName, description: editDesc, owner_id: editOwnerId || undefined });
       setIsEditProjectOpen(false);
       loadData();
     } catch (err) {
@@ -624,6 +626,22 @@ export const ProjectDetailPage = () => {
               onChange={e => setEditName(e.target.value)}
               className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50 font-semibold"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Owner
+            </label>
+            <select
+              value={editOwnerId}
+              onChange={e => setEditOwnerId(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-slate-50/50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden font-semibold"
+            >
+              {allUsers.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-500 mt-1">Changing the owner adds them to the project if they are not already a member.</p>
           </div>
 
           <div>
