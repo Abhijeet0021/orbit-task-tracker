@@ -48,21 +48,21 @@ const taskSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Task',
   }],
-  created_at: {
-    type: Date,
-    default: Date.now,
-  },
-  updated_at: {
-    type: Date,
-    default: Date.now,
-  },
+}, {
+  timestamps: {
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
+  }
 });
 
+// Primary unique project task code index
 taskSchema.index({ project: 1, task_number: 1 }, { unique: true });
 
-taskSchema.pre('save', function() {
-  this.updated_at = new Date();
-});
+// Targeted query indexes for dashboard, filters, and SLA overdue calculation
+taskSchema.index({ project: 1, status: 1 });
+taskSchema.index({ assignees: 1, status: 1 });
+taskSchema.index({ status: 1, due_date: 1 });
+taskSchema.index({ status: 1, updated_at: -1 });
 
 taskSchema.set('toJSON', {
   transform: (doc, ret) => {

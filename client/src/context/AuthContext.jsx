@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const switchPersona = async (email, password) => {
-    const pwd = password || (email.includes('manager') ? 'Manager123!' : 'Member123!');
+    const pwd = password || 'password123';
     await login(email, pwd);
   };
 

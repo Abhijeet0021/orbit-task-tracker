@@ -31,19 +31,15 @@ const projectSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   }],
-  created_at: {
-    type: Date,
-    default: Date.now,
-  },
-  updated_at: {
-    type: Date,
-    default: Date.now,
-  },
+}, {
+  timestamps: {
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
+  }
 });
 
-projectSchema.pre('save', function() {
-  this.updated_at = new Date();
-});
+projectSchema.index({ members: 1 });
+projectSchema.index({ is_archived: 1 });
 
 projectSchema.set('toJSON', {
   transform: (doc, ret) => {

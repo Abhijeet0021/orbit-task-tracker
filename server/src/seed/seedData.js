@@ -21,7 +21,7 @@ export async function runSeed(customUri = null) {
   ]);
 
   console.log('👤 Seeding Users (Manager & Members)...');
-  const passwordHash = bcrypt.hashSync('password123', 10);
+  const passwordHash = await bcrypt.hash('password123', 10);
 
   const [manager1, member1, member2, member3] = await Promise.all([
     User.create({

@@ -47,6 +47,9 @@ const taskActivitySchema = new mongoose.Schema({
   },
 });
 
+taskActivitySchema.index({ task: 1, created_at: 1 });
+taskActivitySchema.index({ created_at: -1 });
+
 taskActivitySchema.set('toJSON', {
   transform: (doc, ret) => {
     ret.id = ret._id.toString();
