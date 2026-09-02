@@ -1,96 +1,94 @@
-import { db } from '../config/database.js';
+import { Task } from '../models/Task.js';
+import { Project } from '../models/Project.js';
+import { User } from '../models/User.js';
 
 export class DashboardController {
-  static getStats(req, res) {
+  static async getStats(req, res) {
     const user = req.user;
     const todayStr = new Date().toISOString().split('T')[0];
 
-    let projectScopeCondition = 'p.is_archived = 0';
-    const params = [];
-
+    // Project filter
+    const projectFilter = { is_archived: false };
     if (user.role !== 'MANAGER') {
-      projectScopeCondition += ' AND p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)';
-      params.push(user.id);
+      projectFilter.members = user.id;
     }
 
-    const openTasksQuery = `
-      SELECT COUNT(*) as count 
-      FROM tasks t 
-      JOIN projects p ON t.project_id = p.id 
-      WHERE ${projectScopeCondition} AND t.status != 'DONE'
-    `;
-    const openTasks = db.prepare(openTasksQuery).get(...params).count;
+    const allowedProjects = await Project.find(projectFilter).select('_id');
+    const allowedProjectIds = allowedProjects.map(p => p._id);
 
-    const overdueTasksQuery = `
-      SELECT COUNT(*) as count 
-      FROM tasks t 
-      JOIN projects p ON t.project_id = p.id 
-      WHERE ${projectScopeCondition} 
-        AND t.status != 'DONE' 
-        AND t.due_date IS NOT NULL 
-        AND t.due_date < ?
-    `;
-    const overdueTasks = db.prepare(overdueTasksQuery).get(...params, todayStr).count;
+    const baseTaskFilter = {
+      project: { $in: allowedProjectIds }
+    };
 
-    const dueThisWeekQuery = `
-      SELECT COUNT(*) as count 
-      FROM tasks t 
-      JOIN projects p ON t.project_id = p.id 
-      WHERE ${projectScopeCondition} 
-        AND t.status != 'DONE' 
-        AND t.due_date IS NOT NULL 
-        AND t.due_date >= ? 
-        AND t.due_date <= date(?, '+7 days')
-    `;
-    const dueThisWeek = db.prepare(dueThisWeekQuery).get(...params, todayStr, todayStr).count;
+    // 1. Headline metrics
+    const [openTasks, overdueTasks, dueThisWeek, completedThisWeek] = await Promise.all([
+      Task.countDocuments({ ...baseTaskFilter, status: { $ne: 'DONE' } }),
+      Task.countDocuments({
+        ...baseTaskFilter,
+        status: { $ne: 'DONE' },
+        due_date: { $ne: null, $lt: todayStr }
+      }),
+      (() => {
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const nextWeekStr = nextWeek.toISOString().split('T')[0];
+        return Task.countDocuments({
+          ...baseTaskFilter,
+          status: { $ne: 'DONE' },
+          due_date: { $gte: todayStr, $lte: nextWeekStr }
+        });
+      })(),
+      (() => {
+        const lastWeek = new Date();
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        return Task.countDocuments({
+          ...baseTaskFilter,
+          status: 'DONE',
+          updated_at: { $gte: lastWeek }
+        });
+      })()
+    ]);
 
-    const completedThisWeekQuery = `
-      SELECT COUNT(*) as count 
-      FROM tasks t 
-      JOIN projects p ON t.project_id = p.id 
-      WHERE ${projectScopeCondition} 
-        AND t.status = 'DONE' 
-        AND t.updated_at >= date(?, '-7 days')
-    `;
-    const completedThisWeek = db.prepare(completedThisWeekQuery).get(...params, todayStr).count;
-
-    const statusBreakdownQuery = `
-      SELECT t.status, COUNT(*) as count
-      FROM tasks t
-      JOIN projects p ON t.project_id = p.id
-      WHERE ${projectScopeCondition}
-      GROUP BY t.status
-    `;
-    const rawStatusCounts = db.prepare(statusBreakdownQuery).all(...params);
-    
+    // 2. Status Breakdown
     const allStatuses = ['BACKLOG', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE'];
-    const statusBreakdown = allStatuses.map(st => {
-      const found = rawStatusCounts.find(r => r.status === st);
+    const statusCounts = await Task.aggregate([
+      { $match: baseTaskFilter },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const statusMap = new Map();
+    statusCounts.forEach(sc => statusMap.set(sc._id, sc.count));
+
+    const statusBreakdown = allStatuses.map(st => ({
+      status: st,
+      count: statusMap.get(st) || 0
+    }));
+
+    // 3. Assignee Breakdown
+    const allUsers = await User.find().select('name email role avatar_color');
+    const assigneeBreakdown = await Promise.all(allUsers.map(async (u) => {
+      const uId = u._id;
+      const [active, overdue, completed] = await Promise.all([
+        Task.countDocuments({ ...baseTaskFilter, assignees: uId, status: { $ne: 'DONE' } }),
+        Task.countDocuments({ ...baseTaskFilter, assignees: uId, status: { $ne: 'DONE' }, due_date: { $ne: null, $lt: todayStr } }),
+        Task.countDocuments({ ...baseTaskFilter, assignees: uId, status: 'DONE' })
+      ]);
+
       return {
-        status: st,
-        count: found ? found.count : 0
+        user_id: uId.toString(),
+        user_name: u.name,
+        user_email: u.email,
+        user_role: u.role,
+        avatar_color: u.avatar_color,
+        active_tasks_count: active,
+        overdue_tasks_count: overdue,
+        completed_tasks_count: completed
       };
-    });
+    }));
 
-    const assigneeBreakdownQuery = `
-      SELECT 
-        u.id as user_id,
-        u.name as user_name,
-        u.email as user_email,
-        u.role as user_role,
-        u.avatar_color,
-        COUNT(CASE WHEN t.status != 'DONE' THEN 1 END) as active_tasks_count,
-        COUNT(CASE WHEN t.status != 'DONE' AND t.due_date IS NOT NULL AND t.due_date < ? THEN 1 END) as overdue_tasks_count,
-        COUNT(CASE WHEN t.status = 'DONE' THEN 1 END) as completed_tasks_count
-      FROM users u
-      LEFT JOIN task_assignees ta ON u.id = ta.user_id
-      LEFT JOIN tasks t ON ta.task_id = t.id
-      LEFT JOIN projects p ON t.project_id = p.id AND ${projectScopeCondition}
-      GROUP BY u.id
-      ORDER BY active_tasks_count DESC, u.name ASC
-    `;
-    const assigneeBreakdown = db.prepare(assigneeBreakdownQuery).all(todayStr, ...params);
+    assigneeBreakdown.sort((a, b) => b.active_tasks_count - a.active_tasks_count);
 
+    // 4. 8-Week Historical Completed Tasks
     const eightWeeksCompletions = [];
     const now = new Date();
 
@@ -107,23 +105,17 @@ export class DashboardController {
       const endStr = weekEnd.toISOString().split('T')[0];
       const label = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
-      const weekCountQuery = `
-        SELECT COUNT(DISTINCT t.id) as count
-        FROM tasks t
-        JOIN projects p ON t.project_id = p.id
-        WHERE ${projectScopeCondition}
-          AND t.status = 'DONE'
-          AND date(t.updated_at) >= ?
-          AND date(t.updated_at) <= ?
-      `;
+      const count = await Task.countDocuments({
+        ...baseTaskFilter,
+        status: 'DONE',
+        updated_at: { $gte: weekStart, $lte: weekEnd }
+      });
 
-      const resRow = db.prepare(weekCountQuery).get(...params, startStr, endStr);
-      
       eightWeeksCompletions.push({
         weekLabel: i === 0 ? 'This Week' : label,
         startDate: startStr,
         endDate: endStr,
-        completedCount: resRow?.count || 0
+        completedCount: count
       });
     }
 

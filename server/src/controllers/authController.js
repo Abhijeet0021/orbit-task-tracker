@@ -1,23 +1,22 @@
 import bcrypt from 'bcryptjs';
-import { db } from '../config/database.js';
+import { User } from '../models/User.js';
 import { generateToken } from '../middleware/auth.js';
 
 export class AuthController {
-  static login(req, res) {
+  static async login(req, res) {
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
-    const stmt = db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE');
-    const user = stmt.get(email);
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    const isMatch = bcrypt.compareSync(password, user.password_hash);
+    const isMatch = bcrypt.compareSync(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
@@ -26,7 +25,7 @@ export class AuthController {
     return res.json({
       token,
       user: {
-        id: user.id,
+        id: user._id.toString(),
         email: user.email,
         name: user.name,
         role: user.role,
@@ -43,9 +42,17 @@ export class AuthController {
     return res.json({ user: req.user });
   }
 
-  static listUsers(req, res) {
-    const stmt = db.prepare('SELECT id, email, name, role, avatar_color, created_at FROM users ORDER BY name ASC');
-    const users = stmt.all();
-    return res.json({ users });
+  static async listUsers(req, res) {
+    const users = await User.find().sort({ name: 1 }).select('name email role avatar_color created_at');
+    return res.json({
+      users: users.map(u => ({
+        id: u._id.toString(),
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        avatar_color: u.avatar_color,
+        created_at: u.created_at
+      }))
+    });
   }
 }

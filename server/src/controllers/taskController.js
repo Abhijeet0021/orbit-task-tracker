@@ -1,207 +1,130 @@
-import { db } from '../config/database.js';
-import { hasProjectAccess } from '../middleware/auth.js';
-import { AuditService } from '../services/auditService.js';
+import { Task } from '../models/Task.js';
+import { Project } from '../models/Project.js';
+import { User } from '../models/User.js';
 import { TaskLifecycleService } from '../services/taskLifecycle.js';
+import { AuditService } from '../services/auditService.js';
+import { hasProjectAccess } from '../middleware/auth.js';
 
 export class TaskController {
-  static formatTask(rawTask) {
-    const assigneesStmt = db.prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.avatar_color
-      FROM task_assignees ta
-      JOIN users u ON ta.user_id = u.id
-      WHERE ta.task_id = ?
-      ORDER BY u.name ASC
-    `);
-
-    const blockersStmt = db.prepare(`
-      SELECT 
-        b.task_id,
-        b.blocked_by_task_id,
-        p.key || '-' || bt.task_number as blocked_by_code,
-        bt.title as blocked_by_title,
-        bt.status as blocked_by_status
-      FROM task_blockers b
-      JOIN tasks bt ON b.blocked_by_task_id = bt.id
-      JOIN projects p ON bt.project_id = p.id
-      WHERE b.task_id = ?
-    `);
-
-    const blockingOthersStmt = db.prepare(`
-      SELECT 
-        t.id,
-        p.key || '-' || t.task_number as code,
-        t.title,
-        t.status
-      FROM task_blockers b
-      JOIN tasks t ON b.task_id = t.id
-      JOIN projects p ON t.project_id = p.id
-      WHERE b.blocked_by_task_id = ?
-    `);
-
-    const assignees = assigneesStmt.all(rawTask.id);
-    const blockers = blockersStmt.all(rawTask.id);
-    const blockingOthers = blockingOthersStmt.all(rawTask.id);
-
-    const todayStr = new Date().toISOString().split('T')[0];
-    const isOverdue = Boolean(
-      rawTask.due_date && 
-      rawTask.due_date < todayStr && 
-      rawTask.status !== 'DONE'
-    );
-
-    return {
-      id: rawTask.id,
-      project_id: rawTask.project_id,
-      project_key: rawTask.project_key,
-      project_name: rawTask.project_name,
-      task_number: rawTask.task_number,
-      code: `${rawTask.project_key}-${rawTask.task_number}`,
-      title: rawTask.title,
-      description: rawTask.description || '',
-      priority: rawTask.priority,
-      status: rawTask.status,
-      previous_status: rawTask.previous_status,
-      due_date: rawTask.due_date,
-      created_by: rawTask.created_by,
-      created_by_name: rawTask.created_by_name,
-      created_at: rawTask.created_at,
-      updated_at: rawTask.updated_at,
-      assignees,
-      blockers,
-      blocking_others: blockingOthers,
-      is_overdue: isOverdue
-    };
-  }
-
-  static listTasks(req, res) {
+  static async listTasks(req, res) {
     const user = req.user;
     const {
       q,
       project_id,
       status,
-      assignee_id,
       priority,
+      assignee_id,
       overdue,
       sort_by = 'updated_at',
       sort_order = 'desc',
-      page = '1',
-      limit = '20'
+      page = 1,
+      limit = 20
     } = req.query;
 
-    const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
-    const offset = (pageNum - 1) * limitNum;
+    const filter = {};
 
-    const conditions = [];
-    const params = [];
-
+    // Project scoping for non-managers
     if (user.role !== 'MANAGER') {
-      conditions.push('t.project_id IN (SELECT project_id FROM project_members WHERE user_id = ?)');
-      params.push(user.id);
-    }
-
-    if (!project_id) {
-      conditions.push('p.is_archived = 0');
-    }
-
-    if (project_id) {
-      const projId = parseInt(project_id, 10);
-      if (!isNaN(projId)) {
-        conditions.push('t.project_id = ?');
-        params.push(projId);
+      const userProjects = await Project.find({ members: user.id }).select('_id');
+      const allowedIds = userProjects.map(p => p._id);
+      if (project_id) {
+        if (!allowedIds.some(id => id.toString() === project_id.toString())) {
+          return res.json({ tasks: [], pagination: { total: 0, page: 1, limit: Number(limit), totalPages: 0 } });
+        }
+        filter.project = project_id;
+      } else {
+        filter.project = { $in: allowedIds };
       }
+    } else if (project_id) {
+      filter.project = project_id;
     }
 
-    if (status) {
-      const statusList = status.split(',').map(s => s.trim().toUpperCase());
-      const placeholders = statusList.map(() => '?').join(',');
-      conditions.push(`t.status IN (${placeholders})`);
-      params.push(...statusList);
-    }
-
-    if (priority) {
-      const priorityList = priority.split(',').map(p => p.trim().toUpperCase());
-      const placeholders = priorityList.map(() => '?').join(',');
-      conditions.push(`t.priority IN (${placeholders})`);
-      params.push(...priorityList);
-    }
+    if (status) filter.status = status;
+    if (priority) filter.priority = priority;
 
     if (assignee_id) {
       if (assignee_id === 'unassigned') {
-        conditions.push('t.id NOT IN (SELECT task_id FROM task_assignees)');
+        filter.assignees = { $size: 0 };
       } else {
-        const aId = parseInt(assignee_id, 10);
-        if (!isNaN(aId)) {
-          conditions.push('t.id IN (SELECT task_id FROM task_assignees WHERE user_id = ?)');
-          params.push(aId);
-        }
+        filter.assignees = assignee_id;
       }
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
     if (overdue === 'true') {
-      const todayStr = new Date().toISOString().split('T')[0];
-      conditions.push('t.due_date IS NOT NULL AND t.due_date < ? AND t.status != ?');
-      params.push(todayStr, 'DONE');
+      filter.due_date = { $ne: null, $lt: todayStr };
+      filter.status = { $ne: 'DONE' };
     }
 
-    if (q && typeof q === 'string' && q.trim().length > 0) {
-      const searchPattern = `%${q.trim()}%`;
-      conditions.push('(t.title LIKE ? OR t.description LIKE ? OR (p.key || \'-\' || t.task_number) LIKE ?)');
-      params.push(searchPattern, searchPattern, searchPattern);
+    if (q && q.trim()) {
+      const searchRegex = new RegExp(q.trim(), 'i');
+      filter.$or = [
+        { title: searchRegex },
+        { description: searchRegex }
+      ];
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM tasks t
-      JOIN projects p ON t.project_id = p.id
-      ${whereClause}
-    `;
-    const totalRow = db.prepare(countQuery).get(...params);
-    const total = totalRow.total;
-
-    const validSortFields = {
-      due_date: 't.due_date',
-      priority: `CASE t.priority 
-        WHEN 'URGENT' THEN 1 
-        WHEN 'HIGH' THEN 2 
-        WHEN 'MEDIUM' THEN 3 
-        WHEN 'LOW' THEN 4 
-        ELSE 5 END`,
-      updated_at: 't.updated_at',
-      created_at: 't.created_at',
-      title: 't.title',
-      task_number: 't.task_number'
+    const sortFieldMap = {
+      updated_at: 'updated_at',
+      created_at: 'created_at',
+      due_date: 'due_date',
+      priority: 'priority',
+      title: 'title',
+      status: 'status'
     };
+    const sortField = sortFieldMap[sort_by] || 'updated_at';
+    const sortDir = sort_order.toLowerCase() === 'asc' ? 1 : -1;
 
-    const sortField = validSortFields[sort_by] || 't.updated_at';
-    const orderDirection = String(sort_order).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const skip = (pageNum - 1) * limitNum;
 
-    let orderBy = `${sortField} ${orderDirection}`;
-    if (sort_by === 'due_date') {
-      orderBy = `CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END, ${sortField} ${orderDirection}`;
-    }
+    const [tasks, total] = await Promise.all([
+      Task.find(filter)
+        .populate('project', 'key name')
+        .populate('assignees', 'name email role avatar_color')
+        .populate('blockers', 'task_number title status')
+        .sort({ [sortField]: sortDir })
+        .skip(skip)
+        .limit(limitNum),
+      Task.countDocuments(filter)
+    ]);
 
-    const dataQuery = `
-      SELECT 
-        t.*,
-        p.key as project_key,
-        p.name as project_name,
-        u.name as created_by_name
-      FROM tasks t
-      JOIN projects p ON t.project_id = p.id
-      JOIN users u ON t.created_by = u.id
-      ${whereClause}
-      ORDER BY ${orderBy}
-      LIMIT ? OFFSET ?
-    `;
-
-    const rawTasks = db.prepare(dataQuery).all(...params, limitNum, offset);
-    const tasks = rawTasks.map(t => TaskController.formatTask(t));
+    const formattedTasks = tasks.map(t => {
+      const isOverdue = Boolean(t.due_date && t.due_date < todayStr && t.status !== 'DONE');
+      return {
+        id: t._id.toString(),
+        code: `${t.project?.key || 'TASK'}-${t.task_number}`,
+        task_number: t.task_number,
+        project_id: t.project?._id.toString(),
+        project_key: t.project?.key || '',
+        project_name: t.project?.name || '',
+        title: t.title,
+        description: t.description,
+        status: t.status,
+        previous_status: t.previous_status,
+        priority: t.priority,
+        due_date: t.due_date,
+        is_overdue: isOverdue,
+        created_at: t.created_at.toISOString().replace('T', ' ').substring(0, 19),
+        updated_at: t.updated_at.toISOString().replace('T', ' ').substring(0, 19),
+        assignees: t.assignees.map(a => ({
+          id: a._id.toString(),
+          name: a.name,
+          email: a.email,
+          role: a.role,
+          avatar_color: a.avatar_color
+        })),
+        blockers: t.blockers.map(b => ({
+          id: b._id.toString(),
+          title: b.title,
+          status: b.status
+        }))
+      };
+    });
 
     return res.json({
-      tasks,
+      tasks: formattedTasks,
       pagination: {
         total,
         page: pageNum,
@@ -211,493 +134,477 @@ export class TaskController {
     });
   }
 
-  static getTask(req, res) {
+  static async getTask(req, res) {
     const user = req.user;
-    const taskId = parseInt(req.params.id, 10);
+    const taskId = req.params.id;
 
-    if (isNaN(taskId)) {
-      return res.status(400).json({ error: 'Invalid task ID.' });
-    }
+    const task = await Task.findById(taskId)
+      .populate('project', 'key name members')
+      .populate('assignees', 'name email role avatar_color')
+      .populate({
+        path: 'blockers',
+        select: 'task_number title status project',
+        populate: { path: 'project', select: 'key' }
+      });
 
-    const rawTask = db.prepare(`
-      SELECT 
-        t.*,
-        p.key as project_key,
-        p.name as project_name,
-        u.name as created_by_name
-      FROM tasks t
-      JOIN projects p ON t.project_id = p.id
-      JOIN users u ON t.created_by = u.id
-      WHERE t.id = ?
-    `).get(taskId);
-
-    if (!rawTask) {
+    if (!task) {
       return res.status(404).json({ error: 'Task not found.' });
     }
 
-    if (!hasProjectAccess(rawTask.project_id, user)) {
-      return res.status(403).json({ error: 'Forbidden: You do not have access to this project.' });
+    const hasAccess = await hasProjectAccess(task.project._id, user);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
     }
 
-    const task = TaskController.formatTask(rawTask);
-    const unfinishedBlockers = TaskLifecycleService.getUnfinishedBlockers(taskId);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isOverdue = Boolean(task.due_date && task.due_date < todayStr && task.status !== 'DONE');
+
+    const unfinishedBlockers = await TaskLifecycleService.getUnfinishedBlockers(task._id);
     const legalTransitions = TaskLifecycleService.getLegalTransitions(task.status, task.previous_status, unfinishedBlockers);
-    const timeline = AuditService.getTimeline(taskId);
+    const timeline = await AuditService.getTimeline(task._id);
 
     return res.json({
-      task,
+      task: {
+        id: task._id.toString(),
+        code: `${task.project.key}-${task.task_number}`,
+        task_number: task.task_number,
+        project_id: task.project._id.toString(),
+        project_key: task.project.key,
+        project_name: task.project.name,
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        previous_status: task.previous_status,
+        priority: task.priority,
+        due_date: task.due_date,
+        is_overdue: isOverdue,
+        created_at: task.created_at.toISOString().replace('T', ' ').substring(0, 19),
+        updated_at: task.updated_at.toISOString().replace('T', ' ').substring(0, 19),
+        assignees: task.assignees.map(a => ({
+          id: a._id.toString(),
+          name: a.name,
+          email: a.email,
+          role: a.role,
+          avatar_color: a.avatar_color
+        })),
+        blockers: task.blockers.map(b => ({
+          id: b._id.toString(),
+          blocker_code: `${b.project?.key || 'TASK'}-${b.task_number}`,
+          blocker_title: b.title,
+          blocker_status: b.status
+        }))
+      },
       legalTransitions,
       timeline
     });
   }
 
-  static createTask(req, res) {
+  static async createTask(req, res) {
     const user = req.user;
-    const { project_id, title, description, priority = 'MEDIUM', due_date, assignee_ids = [], blocker_ids = [] } = req.body;
+    const { project_id, title, description, priority = 'MEDIUM', due_date, assignee_ids } = req.body;
 
-    const projectId = parseInt(project_id, 10);
-    if (isNaN(projectId) || !title || !title.trim()) {
+    if (!project_id || !title) {
       return res.status(400).json({ error: 'Project ID and task title are required.' });
     }
 
-    if (!hasProjectAccess(projectId, user)) {
-      return res.status(403).json({ error: 'Forbidden: You do not have access to this project.' });
+    const project = await Project.findById(project_id);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found.' });
     }
 
-    const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-    if (!validPriorities.includes(priority)) {
-      return res.status(400).json({ error: 'Invalid priority value.' });
+    const hasAccess = await hasProjectAccess(project_id, user);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to create tasks in this project.' });
     }
 
-    if (Array.isArray(assignee_ids) && assignee_ids.length > 0) {
-      for (const uid of assignee_ids) {
-        const isMember = db.prepare('SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ?').get(projectId, uid);
-        if (!isMember) {
-          const u = db.prepare('SELECT name FROM users WHERE id = ?').get(uid);
-          return res.status(400).json({ 
-            error: `Cannot assign user ${u ? u.name : uid}: user is not a member of this project.` 
-          });
-        }
-      }
-    }
+    // Determine sequential task_number for this project
+    const lastTask = await Task.findOne({ project: project._id }).sort({ task_number: -1 });
+    const nextNumber = (lastTask ? lastTask.task_number : 0) + 1;
 
-    const createTaskTx = db.transaction(() => {
-      const maxNumRow = db.prepare('SELECT COALESCE(MAX(task_number), 0) as maxNum FROM tasks WHERE project_id = ?').get(projectId);
-      const taskNumber = maxNumRow.maxNum + 1;
-
-      const insertStmt = db.prepare(`
-        INSERT INTO tasks (project_id, task_number, title, description, priority, status, previous_status, due_date, created_by, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'BACKLOG', NULL, ?, ?, datetime('now'), datetime('now'))
-      `);
-
-      const result = insertStmt.run(
-        projectId,
-        taskNumber,
-        title.trim(),
-        description?.trim() || '',
-        priority,
-        due_date || null,
-        user.id
-      );
-
-      const taskId = result.lastInsertRowid;
-
-      if (Array.isArray(assignee_ids)) {
-        const assignStmt = db.prepare('INSERT OR IGNORE INTO task_assignees (task_id, user_id, assigned_at) VALUES (?, ?, datetime(\'now\'))');
-        for (const uid of assignee_ids) {
-          assignStmt.run(taskId, uid);
-          const u = db.prepare('SELECT name FROM users WHERE id = ?').get(uid);
-          AuditService.logActivity({
-            taskId,
-            userId: user.id,
-            activityType: 'ASSIGNED',
-            oldValue: null,
-            newValue: `${u?.name || uid}`,
-            commentText: `Assigned on task creation.`
-          });
-        }
-      }
-
-      if (Array.isArray(blocker_ids)) {
-        const blockerStmt = db.prepare('INSERT OR IGNORE INTO task_blockers (task_id, blocked_by_task_id, created_at) VALUES (?, ?, datetime(\'now\'))');
-        for (const bId of blocker_ids) {
-          const blockerTask = db.prepare('SELECT id, project_id, task_number, title FROM tasks WHERE id = ?').get(bId);
-          if (blockerTask && blockerTask.project_id === projectId) {
-            blockerStmt.run(taskId, bId);
-            AuditService.logActivity({
-              taskId,
-              userId: user.id,
-              activityType: 'BLOCKER_ADDED',
-              newValue: `Blocked by #${blockerTask.task_number}: ${blockerTask.title}`
-            });
-          }
-        }
-      }
-
-      AuditService.logActivity({
-        taskId,
-        userId: user.id,
-        activityType: 'CREATED',
-        newValue: `Created task "${title.trim()}" with priority ${priority}`
-      });
-
-      return taskId;
+    const task = await Task.create({
+      project: project._id,
+      task_number: nextNumber,
+      title: title.trim(),
+      description: description?.trim() || '',
+      priority,
+      status: 'BACKLOG',
+      previous_status: null,
+      due_date: due_date || null,
+      assignees: Array.isArray(assignee_ids) ? assignee_ids : []
     });
 
-    const newTaskId = createTaskTx();
+    await AuditService.logActivity({
+      taskId: task._id,
+      userId: user.id,
+      activityType: 'CREATED',
+      newValue: `Task created with status Backlog`
+    });
 
-    const createdRaw = db.prepare(`
-      SELECT 
-        t.*,
-        p.key as project_key,
-        p.name as project_name,
-        u.name as created_by_name
-      FROM tasks t
-      JOIN projects p ON t.project_id = p.id
-      JOIN users u ON t.created_by = u.id
-      WHERE t.id = ?
-    `).get(newTaskId);
-
-    return res.status(201).json({ task: TaskController.formatTask(createdRaw) });
+    return res.status(201).json({
+      task: {
+        id: task._id.toString(),
+        code: `${project.key}-${task.task_number}`,
+        task_number: task.task_number,
+        title: task.title,
+        status: task.status,
+        priority: task.priority
+      }
+    });
   }
 
-  static updateTask(req, res) {
+  static async updateTask(req, res) {
     const user = req.user;
-    const taskId = parseInt(req.params.id, 10);
+    const taskId = req.params.id;
     const { title, description, priority, due_date, status } = req.body;
 
-    if (isNaN(taskId)) {
-      return res.status(400).json({ error: 'Invalid task ID.' });
-    }
-
-    const currentTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
-    if (!currentTask) {
+    const task = await Task.findById(taskId).populate('project', 'key name');
+    if (!task) {
       return res.status(404).json({ error: 'Task not found.' });
     }
 
-    if (!hasProjectAccess(currentTask.project_id, user)) {
-      return res.status(403).json({ error: 'Forbidden: You do not have access to this project.' });
+    const hasAccess = await hasProjectAccess(task.project._id, user);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Forbidden: You do not have access to modify this task.' });
     }
 
-    const updates = [];
-    const updateParams = [];
-
-    if (title !== undefined && title.trim() !== currentTask.title) {
-      updates.push('title = ?');
-      updateParams.push(title.trim());
-      AuditService.logActivity({
-        taskId,
-        userId: user.id,
-        activityType: 'FIELD_UPDATED',
-        fieldName: 'title',
-        oldValue: currentTask.title,
-        newValue: title.trim()
-      });
-    }
-
-    if (description !== undefined && (description.trim() || '') !== (currentTask.description || '')) {
-      updates.push('description = ?');
-      updateParams.push(description.trim());
-      AuditService.logActivity({
-        taskId,
-        userId: user.id,
-        activityType: 'FIELD_UPDATED',
-        fieldName: 'description',
-        oldValue: currentTask.description || '(empty)',
-        newValue: description.trim() || '(empty)'
-      });
-    }
-
-    if (priority !== undefined && priority !== currentTask.priority) {
-      const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-      if (!validPriorities.includes(priority)) {
-        return res.status(400).json({ error: 'Invalid priority value.' });
-      }
-      updates.push('priority = ?');
-      updateParams.push(priority);
-      AuditService.logActivity({
-        taskId,
-        userId: user.id,
-        activityType: 'FIELD_UPDATED',
-        fieldName: 'priority',
-        oldValue: currentTask.priority,
-        newValue: priority
-      });
-    }
-
-    if (due_date !== undefined && due_date !== currentTask.due_date) {
-      const formattedDate = due_date ? due_date.split('T')[0] : null;
-      updates.push('due_date = ?');
-      updateParams.push(formattedDate);
-      AuditService.logActivity({
-        taskId,
-        userId: user.id,
-        activityType: 'FIELD_UPDATED',
-        fieldName: 'due_date',
-        oldValue: currentTask.due_date || '(none)',
-        newValue: formattedDate || '(none)'
-      });
-
-      db.prepare('DELETE FROM alert_dismissals WHERE task_id = ?').run(taskId);
-    }
-
-    if (status !== undefined && status !== currentTask.status) {
-      const validation = TaskLifecycleService.validateTransition(
-        {
-          id: currentTask.id,
-          status: currentTask.status,
-          previous_status: currentTask.previous_status,
-          project_id: currentTask.project_id
-        },
-        status
-      );
-
+    // Handle status change validation
+    if (status && status !== task.status) {
+      const validation = await TaskLifecycleService.validateTransition(task, status);
       if (!validation.valid) {
         return res.status(400).json({ error: validation.error });
       }
 
-      updates.push('status = ?', 'previous_status = ?');
-      updateParams.push(status, validation.previousStatus ?? null);
+      const oldStatus = task.status;
+      task.status = status;
+      task.previous_status = validation.previousStatus;
 
-      AuditService.logActivity({
-        taskId,
+      await AuditService.logActivity({
+        taskId: task._id,
         userId: user.id,
         activityType: 'STATUS_CHANGED',
         fieldName: 'status',
-        oldValue: currentTask.status,
+        oldValue: oldStatus,
         newValue: status
       });
     }
 
-    if (updates.length === 0) {
-      const formatted = TaskController.formatTask(
-        db.prepare(`
-          SELECT t.*, p.key as project_key, p.name as project_name, u.name as created_by_name
-          FROM tasks t
-          JOIN projects p ON t.project_id = p.id
-          JOIN users u ON t.created_by = u.id
-          WHERE t.id = ?
-        `).get(taskId)
-      );
-      return res.json({ task: formatted });
+    if (title && title.trim() !== task.title) {
+      const oldVal = task.title;
+      task.title = title.trim();
+      await AuditService.logActivity({
+        taskId: task._id,
+        userId: user.id,
+        activityType: 'FIELD_UPDATED',
+        fieldName: 'title',
+        oldValue: oldVal,
+        newValue: task.title
+      });
     }
 
-    updates.push('updated_at = datetime(\'now\')');
-    updateParams.push(taskId);
+    if (description !== undefined && description !== task.description) {
+      task.description = description.trim();
+      await AuditService.logActivity({
+        taskId: task._id,
+        userId: user.id,
+        activityType: 'FIELD_UPDATED',
+        fieldName: 'description',
+        oldValue: '...',
+        newValue: '...'
+      });
+    }
 
-    db.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`).run(...updateParams);
+    if (priority && priority !== task.priority) {
+      const oldVal = task.priority;
+      task.priority = priority;
+      await AuditService.logActivity({
+        taskId: task._id,
+        userId: user.id,
+        activityType: 'FIELD_UPDATED',
+        fieldName: 'priority',
+        oldValue: oldVal,
+        newValue: priority
+      });
+    }
 
-    const updatedRaw = db.prepare(`
-      SELECT t.*, p.key as project_key, p.name as project_name, u.name as created_by_name
-      FROM tasks t
-      JOIN projects p ON t.project_id = p.id
-      JOIN users u ON t.created_by = u.id
-      WHERE t.id = ?
-    `).get(taskId);
+    if (due_date !== undefined && due_date !== task.due_date) {
+      const oldVal = task.due_date;
+      task.due_date = due_date || null;
+      await AuditService.logActivity({
+        taskId: task._id,
+        userId: user.id,
+        activityType: 'FIELD_UPDATED',
+        fieldName: 'due_date',
+        oldValue: oldVal,
+        newValue: task.due_date
+      });
+    }
 
-    return res.json({ task: TaskController.formatTask(updatedRaw) });
+    await task.save();
+
+    return res.json({
+      task: {
+        id: task._id.toString(),
+        code: `${task.project.key}-${task.task_number}`,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        due_date: task.due_date
+      }
+    });
   }
 
-  static deleteTask(req, res) {
-    const user = req.user;
-    const taskId = parseInt(req.params.id, 10);
-
-    if (isNaN(taskId)) {
-      return res.status(400).json({ error: 'Invalid task ID.' });
+  static async deleteTask(req, res) {
+    if (req.user && req.user.role !== 'MANAGER') {
+      return res.status(403).json({ error: 'Only managers can delete tasks' });
     }
 
-    if (user.role !== 'MANAGER') {
-      return res.status(403).json({ error: 'Forbidden: Only managers can delete tasks.' });
-    }
-
-    const task = db.prepare('SELECT id, title FROM tasks WHERE id = ?').get(taskId);
+    const taskId = req.params.id;
+    const task = await Task.findById(taskId);
     if (!task) {
       return res.status(404).json({ error: 'Task not found.' });
     }
 
-    db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
+    // Pull from any tasks that had this as blocker
+    await Task.updateMany({ blockers: task._id }, { $pull: { blockers: task._id } });
+    await Task.findByIdAndDelete(taskId);
 
-    return res.json({ message: `Task "${task.title}" deleted successfully.` });
+    return res.json({ message: 'Task deleted successfully.' });
   }
 
-  static addAssignee(req, res) {
-    const user = req.user;
-    const taskId = parseInt(req.params.id, 10);
+  static async addAssignee(req, res) {
+    const taskId = req.params.id;
     const { userId } = req.body;
 
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
-    if (!task) {
-      return res.status(404).json({ error: 'Task not found.' });
+    const [task, assignee] = await Promise.all([
+      Task.findById(taskId),
+      User.findById(userId)
+    ]);
+
+    if (!task) return res.status(404).json({ error: 'Task not found.' });
+    if (!assignee) return res.status(404).json({ error: 'User not found.' });
+
+    if (!task.assignees.some(a => a.toString() === userId.toString())) {
+      task.assignees.push(assignee._id);
+      await task.save();
+
+      await AuditService.logActivity({
+        taskId: task._id,
+        userId: req.user.id,
+        activityType: 'ASSIGNED',
+        newValue: `${assignee.name} (${assignee.email})`
+      });
     }
 
-    if (!hasProjectAccess(task.project_id, user)) {
-      return res.status(403).json({ error: 'Forbidden: You do not have access to this project.' });
-    }
-
-    const targetUser = db.prepare('SELECT id, name FROM users WHERE id = ?').get(userId);
-    if (!targetUser) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    const isMember = db.prepare('SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ?').get(task.project_id, userId);
-    if (!isMember) {
-      return res.status(400).json({ error: `User ${targetUser.name} is not a member of this project.` });
-    }
-
-    db.prepare('INSERT OR IGNORE INTO task_assignees (task_id, user_id, assigned_at) VALUES (?, ?, datetime(\'now\'))').run(taskId, userId);
-    db.prepare('UPDATE tasks SET updated_at = datetime(\'now\') WHERE id = ?').run(taskId);
-
-    AuditService.logActivity({
-      taskId,
-      userId: user.id,
-      activityType: 'ASSIGNED',
-      oldValue: null,
-      newValue: targetUser.name
-    });
-
-    return res.json({ message: `Assigned ${targetUser.name} to task.` });
+    return res.json({ message: 'Assignee added.' });
   }
 
-  static removeAssignee(req, res) {
-    const user = req.user;
-    const taskId = parseInt(req.params.id, 10);
-    const userId = parseInt(req.params.userId, 10);
+  static async removeAssignee(req, res) {
+    const taskId = req.params.id;
+    const userId = req.params.userId;
 
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
-    if (!task) {
-      return res.status(404).json({ error: 'Task not found.' });
-    }
+    const [task, assignee] = await Promise.all([
+      Task.findById(taskId),
+      User.findById(userId)
+    ]);
 
-    if (!hasProjectAccess(task.project_id, user)) {
-      return res.status(403).json({ error: 'Forbidden: You do not have access to this project.' });
-    }
+    if (!task) return res.status(404).json({ error: 'Task not found.' });
+    if (!assignee) return res.status(404).json({ error: 'User not found.' });
 
-    const targetUser = db.prepare('SELECT id, name FROM users WHERE id = ?').get(userId);
-    if (!targetUser) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
+    task.assignees = task.assignees.filter(a => a.toString() !== userId.toString());
+    await task.save();
 
-    db.prepare('DELETE FROM task_assignees WHERE task_id = ? AND user_id = ?').run(taskId, userId);
-    db.prepare('UPDATE tasks SET updated_at = datetime(\'now\') WHERE id = ?').run(taskId);
-
-    AuditService.logActivity({
-      taskId,
-      userId: user.id,
+    await AuditService.logActivity({
+      taskId: task._id,
+      userId: req.user.id,
       activityType: 'UNASSIGNED',
-      oldValue: targetUser.name,
-      newValue: null
+      oldValue: `${assignee.name} (${assignee.email})`
     });
 
-    return res.json({ message: `Unassigned ${targetUser.name} from task.` });
+    return res.json({ message: 'Assignee removed.' });
   }
 
-  static addBlocker(req, res) {
-    const user = req.user;
-    const taskId = parseInt(req.params.id, 10);
+  static async addBlocker(req, res) {
+    const taskId = req.params.id;
     const { blockerTaskId } = req.body;
 
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
-    const blockerTask = db.prepare(`
-      SELECT t.*, p.key as project_key
-      FROM tasks t
-      JOIN projects p ON t.project_id = p.id
-      WHERE t.id = ?
-    `).get(blockerTaskId);
+    if (!blockerTaskId) {
+      return res.status(400).json({ error: 'Blocker task ID is required.' });
+    }
+
+    if (taskId.toString() === blockerTaskId.toString()) {
+      return res.status(400).json({ error: 'A task cannot block itself.' });
+    }
+
+    const [task, blockerTask] = await Promise.all([
+      Task.findById(taskId).populate('project', 'key'),
+      Task.findById(blockerTaskId).populate('project', 'key')
+    ]);
 
     if (!task || !blockerTask) {
       return res.status(404).json({ error: 'Task or blocker task not found.' });
     }
 
-    if (!hasProjectAccess(task.project_id, user)) {
-      return res.status(403).json({ error: 'Forbidden: You do not have access to this project.' });
+    // Check for circular dependency
+    const isCycle = await TaskLifecycleService.wouldCreateCycle(task._id, blockerTask._id);
+    if (isCycle) {
+      return res.status(400).json({
+        error: `Cannot add dependency: creating a circular dependency cycle between ${task.project.key}-${task.task_number} and ${blockerTask.project.key}-${blockerTask.task_number}.`
+      });
     }
 
-    if (task.project_id !== blockerTask.project_id) {
-      return res.status(400).json({ error: 'Blocker task must belong to the same project.' });
+    if (!task.blockers.some(b => b.toString() === blockerTask._id.toString())) {
+      task.blockers.push(blockerTask._id);
+      await task.save();
+
+      await AuditService.logActivity({
+        taskId: task._id,
+        userId: req.user.id,
+        activityType: 'BLOCKER_ADDED',
+        newValue: `Blocked by ${blockerTask.project.key}-${blockerTask.task_number}: ${blockerTask.title}`
+      });
     }
 
-    if (task.id === blockerTaskId) {
-      return res.status(400).json({ error: 'A task cannot block itself.' });
-    }
-
-    if (TaskLifecycleService.wouldCreateCycle(taskId, blockerTaskId)) {
-      return res.status(400).json({ error: 'Cannot add blocker: this would create a circular dependency cycle.' });
-    }
-
-    db.prepare('INSERT OR IGNORE INTO task_blockers (task_id, blocked_by_task_id, created_at) VALUES (?, ?, datetime(\'now\'))').run(taskId, blockerTaskId);
-    db.prepare('UPDATE tasks SET updated_at = datetime(\'now\') WHERE id = ?').run(taskId);
-
-    AuditService.logActivity({
-      taskId,
-      userId: user.id,
-      activityType: 'BLOCKER_ADDED',
-      newValue: `Blocked by ${blockerTask.project_key}-${blockerTask.task_number}: ${blockerTask.title}`
-    });
-
-    return res.json({ message: 'Blocker added successfully.' });
+    return res.status(201).json({ message: 'Blocker added successfully.' });
   }
 
-  static removeBlocker(req, res) {
-    const user = req.user;
-    const taskId = parseInt(req.params.id, 10);
-    const blockerTaskId = parseInt(req.params.blockerId, 10);
+  static async removeBlocker(req, res) {
+    const taskId = req.params.id;
+    const blockerId = req.params.blockerId;
 
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
-    const blockerTask = db.prepare(`
-      SELECT t.*, p.key as project_key
-      FROM tasks t
-      JOIN projects p ON t.project_id = p.id
-      WHERE t.id = ?
-    `).get(blockerTaskId);
+    const [task, blockerTask] = await Promise.all([
+      Task.findById(taskId),
+      Task.findById(blockerId).populate('project', 'key')
+    ]);
 
-    if (!task) {
-      return res.status(404).json({ error: 'Task not found.' });
-    }
+    if (!task) return res.status(404).json({ error: 'Task not found.' });
 
-    if (!hasProjectAccess(task.project_id, user)) {
-      return res.status(403).json({ error: 'Forbidden: You do not have access to this project.' });
-    }
+    task.blockers = task.blockers.filter(b => b.toString() !== blockerId.toString());
+    await task.save();
 
-    db.prepare('DELETE FROM task_blockers WHERE task_id = ? AND blocked_by_task_id = ?').run(taskId, blockerTaskId);
-    db.prepare('UPDATE tasks SET updated_at = datetime(\'now\') WHERE id = ?').run(taskId);
-
-    AuditService.logActivity({
-      taskId,
-      userId: user.id,
+    const blockerLabel = blockerTask ? `${blockerTask.project.key}-${blockerTask.task_number}` : blockerId;
+    await AuditService.logActivity({
+      taskId: task._id,
+      userId: req.user.id,
       activityType: 'BLOCKER_REMOVED',
-      oldValue: blockerTask ? `${blockerTask.project_key}-${blockerTask.task_number}: ${blockerTask.title}` : `Task #${blockerTaskId}`
+      oldValue: blockerLabel
     });
 
-    return res.json({ message: 'Blocker removed successfully.' });
+    return res.json({ message: 'Blocker removed.' });
   }
 
-  static addComment(req, res) {
-    const user = req.user;
-    const taskId = parseInt(req.params.id, 10);
+  static async addComment(req, res) {
+    const taskId = req.params.id;
     const { comment } = req.body;
 
-    if (isNaN(taskId) || !comment || !comment.trim()) {
-      return res.status(400).json({ error: 'Comment text is required.' });
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({ error: 'Comment text cannot be empty.' });
     }
 
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+    const task = await Task.findById(taskId);
     if (!task) {
       return res.status(404).json({ error: 'Task not found.' });
     }
 
-    if (!hasProjectAccess(task.project_id, user)) {
-      return res.status(403).json({ error: 'Forbidden: You do not have access to this project.' });
-    }
-
-    AuditService.logActivity({
-      taskId,
-      userId: user.id,
+    await AuditService.logActivity({
+      taskId: task._id,
+      userId: req.user.id,
       activityType: 'COMMENT_ADDED',
       commentText: comment.trim()
     });
 
-    db.prepare('UPDATE tasks SET updated_at = datetime(\'now\') WHERE id = ?').run(taskId);
-
     return res.status(201).json({ message: 'Comment added successfully.' });
+  }
+
+  static async getActivityFeed(req, res) {
+    const user = req.user;
+    const { project_id, user_id, activity_type, limit = '50' } = req.query;
+
+    const activities = await AuditService.getGlobalFeed({
+      user,
+      projectId: project_id,
+      userId: user_id,
+      activityType: activity_type,
+      limit: parseInt(limit, 10) || 50
+    });
+
+    return res.json({
+      activities,
+      count: activities.length
+    });
+  }
+
+  static async exportCsv(req, res) {
+    const user = req.user;
+    const { q, project_id, status, priority, assignee_id, overdue, sort_by = 'updated_at', sort_order = 'desc' } = req.query;
+
+    const filter = {};
+    if (user.role !== 'MANAGER') {
+      const userProjects = await Project.find({ members: user.id }).select('_id');
+      const allowedIds = userProjects.map(p => p._id);
+      if (project_id) {
+        if (!allowedIds.some(id => id.toString() === project_id.toString())) {
+          res.setHeader('Content-Type', 'text/csv');
+          return res.send('Task ID,Project,Title,Status,Priority,Assignees,Due Date,Created At,Updated At\n');
+        }
+        filter.project = project_id;
+      } else {
+        filter.project = { $in: allowedIds };
+      }
+    } else if (project_id) {
+      filter.project = project_id;
+    }
+
+    if (status) filter.status = status;
+    if (priority) filter.priority = priority;
+    if (assignee_id) {
+      if (assignee_id === 'unassigned') filter.assignees = { $size: 0 };
+      else filter.assignees = assignee_id;
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (overdue === 'true') {
+      filter.due_date = { $ne: null, $lt: todayStr };
+      filter.status = { $ne: 'DONE' };
+    }
+
+    if (q && q.trim()) {
+      const searchRegex = new RegExp(q.trim(), 'i');
+      filter.$or = [{ title: searchRegex }, { description: searchRegex }];
+    }
+
+    const tasks = await Task.find(filter)
+      .populate('project', 'key name')
+      .populate('assignees', 'name')
+      .sort({ [sort_by || 'updated_at']: sort_order === 'asc' ? 1 : -1 });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="tasks-export.csv"');
+
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const headers = ['Task ID', 'Project', 'Title', 'Status', 'Priority', 'Assignees', 'Due Date', 'Created At', 'Updated At'];
+    let csv = headers.join(',') + '\n';
+
+    for (const t of tasks) {
+      const assigneesStr = t.assignees.map(a => a.name).join('; ');
+      const row = [
+        escapeCsv(`${t.project?.key || 'TASK'}-${t.task_number}`),
+        escapeCsv(t.project?.name || ''),
+        escapeCsv(t.title),
+        escapeCsv(t.status),
+        escapeCsv(t.priority),
+        escapeCsv(assigneesStr),
+        escapeCsv(t.due_date || ''),
+        escapeCsv(t.created_at.toISOString().split('T')[0]),
+        escapeCsv(t.updated_at.toISOString().split('T')[0])
+      ];
+      csv += row.join(',') + '\n';
+    }
+
+    return res.send(csv);
   }
 }

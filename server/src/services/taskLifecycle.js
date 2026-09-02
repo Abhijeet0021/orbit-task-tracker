@@ -1,4 +1,5 @@
-import { db } from '../config/database.js';
+import mongoose from 'mongoose';
+import { Task } from '../models/Task.js';
 
 export class TaskLifecycleService {
   /**
@@ -60,30 +61,38 @@ export class TaskLifecycleService {
   /**
    * Get all unfinished blockers for a task.
    */
-  static getUnfinishedBlockers(taskId) {
-    const stmt = db.prepare(`
-      SELECT 
-        t.id,
-        p.key || '-' || t.task_number as code,
-        t.title,
-        t.status
-      FROM task_blockers b
-      JOIN tasks t ON b.blocked_by_task_id = t.id
-      JOIN projects p ON t.project_id = p.id
-      WHERE b.task_id = ? AND t.status != 'DONE'
-    `);
-    return stmt.all(taskId);
+  static async getUnfinishedBlockers(taskId) {
+    if (!taskId || !mongoose.Types.ObjectId.isValid(taskId)) {
+      return [];
+    }
+
+    const task = await Task.findById(taskId);
+    if (!task || !task.blockers || task.blockers.length === 0) {
+      return [];
+    }
+
+    const unfinished = await Task.find({
+      _id: { $in: task.blockers },
+      status: { $ne: 'DONE' }
+    }).populate('project');
+
+    return unfinished.map(t => ({
+      id: t._id.toString(),
+      code: `${t.project?.key || 'TASK'}-${t.task_number}`,
+      title: t.title,
+      status: t.status
+    }));
   }
 
   /**
    * Validate if a state transition is legal according to lifecycle rules and blocker constraints.
    */
-  static validateTransition(task, targetStatus) {
+  static async validateTransition(task, targetStatus) {
     if (task.status === targetStatus) {
       return { valid: true, previousStatus: task.previous_status };
     }
 
-    const unfinishedBlockers = this.getUnfinishedBlockers(task.id);
+    const unfinishedBlockers = await this.getUnfinishedBlockers(task._id);
     const legalOptions = this.getLegalTransitions(task.status, task.previous_status, unfinishedBlockers);
 
     const matchingOption = legalOptions.find(opt => opt.status === targetStatus);
@@ -118,29 +127,34 @@ export class TaskLifecycleService {
 
   /**
    * Check if adding a blocker creates a circular dependency chain.
+   * If task A is blocked by task B, we cannot make B blocked by A (or any task that transitively depends on A).
    */
-  static wouldCreateCycle(taskId, newBlockerTaskId) {
-    if (taskId === newBlockerTaskId) return true;
+  static async wouldCreateCycle(taskId, newBlockerTaskId) {
+    const sTaskId = taskId.toString();
+    const sNewBlockerId = newBlockerTaskId.toString();
 
+    if (sTaskId === sNewBlockerId) return true;
+
+    // Follow tasks that are blocked by taskId. If we ever reach newBlockerTaskId, adding it would close a cycle.
     const visited = new Set();
-    const queue = [taskId];
+    const queue = [sTaskId];
 
     while (queue.length > 0) {
       const current = queue.shift();
-      if (current === newBlockerTaskId) {
+      if (current === sNewBlockerId) {
         return true;
       }
       visited.add(current);
 
-      const stmt = db.prepare('SELECT task_id FROM task_blockers WHERE blocked_by_task_id = ?');
-      const rows = stmt.all(current);
-
-      for (const row of rows) {
-        if (row.task_id === newBlockerTaskId) {
+      // Find all tasks that have `current` in their blockers list
+      const dependentTasks = await Task.find({ blockers: current }).select('_id');
+      for (const dep of dependentTasks) {
+        const depId = dep._id.toString();
+        if (depId === sNewBlockerId) {
           return true;
         }
-        if (!visited.has(row.task_id)) {
-          queue.push(row.task_id);
+        if (!visited.has(depId)) {
+          queue.push(depId);
         }
       }
     }

@@ -14,8 +14,25 @@ initDatabase();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-app.use(cors());
+const allowedOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) 
+  : '*';
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
+
+// Health Check Endpoint (Essential for Render deployment)
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'orbit-api',
+    uptime: process.uptime()
+  });
+});
 
 app.use('/api', router);
 

@@ -1,53 +1,63 @@
-import { db } from '../config/database.js';
+import { Task } from '../models/Task.js';
+import { Project } from '../models/Project.js';
+import { AlertDismissal } from '../models/AlertDismissal.js';
 
 export class AlertController {
-  static getOverdueAlerts(req, res) {
+  static async getOverdueAlerts(req, res) {
     const user = req.user;
     const todayStr = new Date().toISOString().split('T')[0];
 
-    const query = `
-      SELECT 
-        t.id as task_id,
-        p.key || '-' || t.task_number as task_code,
-        t.title as task_title,
-        p.id as project_id,
-        p.key as project_key,
-        p.name as project_name,
-        t.due_date,
-        t.priority,
-        t.status,
-        CAST((julianday(?) - julianday(t.due_date)) AS INTEGER) as days_overdue
-      FROM tasks t
-      JOIN projects p ON t.project_id = p.id
-      JOIN task_assignees ta ON t.id = ta.task_id
-      WHERE ta.user_id = ?
-        AND p.is_archived = 0
-        AND t.status != 'DONE'
-        AND t.due_date IS NOT NULL
-        AND t.due_date < ?
-        AND NOT EXISTS (
-          SELECT 1 FROM alert_dismissals ad
-          WHERE ad.user_id = ? 
-            AND ad.task_id = t.id 
-            AND ad.dismissed_due_date = t.due_date
-        )
-      ORDER BY t.due_date ASC
-    `;
+    // Find all dismissals by this user
+    const dismissals = await AlertDismissal.find({ user: user.id });
+    const dismissedMap = new Map();
+    for (const d of dismissals) {
+      dismissedMap.set(d.task.toString(), d.dismissed_due_date);
+    }
 
-    const rawAlerts = db.prepare(query).all(todayStr, user.id, todayStr, user.id);
+    const tasks = await Task.find({
+      assignees: user.id,
+      status: { $ne: 'DONE' },
+      due_date: { $ne: null, $lt: todayStr }
+    })
+    .populate('project', 'key name is_archived')
+    .populate('assignees', 'name email role avatar_color')
+    .sort({ due_date: 1 });
 
-    const assigneesStmt = db.prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.avatar_color
-      FROM task_assignees ta
-      JOIN users u ON ta.user_id = u.id
-      WHERE ta.task_id = ?
-      ORDER BY u.name ASC
-    `);
+    const alerts = [];
+    const todayDate = new Date(todayStr);
 
-    const alerts = rawAlerts.map(a => ({
-      ...a,
-      assignees: assigneesStmt.all(a.task_id)
-    }));
+    for (const t of tasks) {
+      if (t.project && t.project.is_archived) continue;
+
+      const tId = t._id.toString();
+      if (dismissedMap.get(tId) === t.due_date) {
+        continue; // Active dismissal for current due date
+      }
+
+      const dueDate = new Date(t.due_date);
+      const diffTime = Math.abs(todayDate - dueDate);
+      const daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      alerts.push({
+        task_id: tId,
+        task_code: `${t.project?.key || 'TASK'}-${t.task_number}`,
+        task_title: t.title,
+        project_id: t.project?._id.toString(),
+        project_key: t.project?.key || '',
+        project_name: t.project?.name || '',
+        due_date: t.due_date,
+        priority: t.priority,
+        status: t.status,
+        days_overdue: daysOverdue,
+        assignees: t.assignees.map(a => ({
+          id: a._id.toString(),
+          name: a.name,
+          email: a.email,
+          role: a.role,
+          avatar_color: a.avatar_color
+        }))
+      });
+    }
 
     return res.json({
       alerts,
@@ -55,29 +65,29 @@ export class AlertController {
     });
   }
 
-  static dismissAlert(req, res) {
+  static async dismissAlert(req, res) {
     const user = req.user;
     const { taskId } = req.body;
 
-    const tId = parseInt(taskId, 10);
-    if (isNaN(tId)) {
+    if (!taskId) {
       return res.status(400).json({ error: 'Valid taskId is required.' });
     }
 
-    const task = db.prepare('SELECT id, due_date FROM tasks WHERE id = ?').get(tId);
+    const task = await Task.findById(taskId);
     if (!task || !task.due_date) {
       return res.status(404).json({ error: 'Overdue task not found.' });
     }
 
-    const isAssigned = db.prepare('SELECT 1 FROM task_assignees WHERE task_id = ? AND user_id = ?').get(tId, user.id);
+    const isAssigned = task.assignees.some(a => a.toString() === user.id.toString());
     if (!isAssigned) {
       return res.status(403).json({ error: 'You can only dismiss alerts for tasks assigned to you.' });
     }
 
-    db.prepare(`
-      INSERT OR REPLACE INTO alert_dismissals (user_id, task_id, dismissed_due_date, dismissed_at)
-      VALUES (?, ?, ?, datetime('now'))
-    `).run(user.id, tId, task.due_date);
+    await AlertDismissal.findOneAndUpdate(
+      { user: user.id, task: task._id },
+      { dismissed_due_date: task.due_date, dismissed_at: new Date() },
+      { upsert: true, returnDocument: 'after' }
+    );
 
     return res.json({ message: 'Alert dismissed successfully.' });
   }

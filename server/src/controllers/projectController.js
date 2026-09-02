@@ -1,119 +1,94 @@
-import { db } from '../config/database.js';
-import { hasProjectAccess } from '../middleware/auth.js';
+import { Project } from '../models/Project.js';
+import { Task } from '../models/Task.js';
+import { User } from '../models/User.js';
 import { AuditService } from '../services/auditService.js';
+import { hasProjectAccess } from '../middleware/auth.js';
 
 export class ProjectController {
-  static listProjects(req, res) {
+  static async listProjects(req, res) {
     const user = req.user;
     const includeArchived = req.query.include_archived === 'true';
 
-    let query = `
-      SELECT 
-        p.id,
-        p.key,
-        p.name,
-        p.description,
-        p.owner_id,
-        u.name as owner_name,
-        u.email as owner_email,
-        p.is_archived,
-        p.created_at,
-        p.updated_at,
-        (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) as members_count,
-        (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id) as tasks_count
-      FROM projects p
-      JOIN users u ON p.owner_id = u.id
-    `;
-
-    const conditions = [];
-    const params = [];
-
+    const filter = {};
     if (!includeArchived) {
-      conditions.push('p.is_archived = 0');
+      filter.is_archived = false;
     }
 
     if (user.role !== 'MANAGER') {
-      conditions.push('p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)');
-      params.push(user.id);
+      filter.members = user.id;
     }
 
-    if (conditions.length > 0) {
-      query += ` WHERE ${conditions.join(' AND ')}`;
-    }
+    const projects = await Project.find(filter)
+      .populate('created_by', 'name email')
+      .populate('members', 'name email role avatar_color')
+      .sort({ name: 1 });
 
-    query += ' ORDER BY p.name ASC';
-
-    const projects = db.prepare(query).all(...params);
-
-    const memberStmt = db.prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.avatar_color, pm.joined_at
-      FROM project_members pm
-      JOIN users u ON pm.user_id = u.id
-      WHERE pm.project_id = ?
-      ORDER BY u.name ASC
-    `);
-
-    const result = projects.map(p => ({
-      ...p,
-      is_archived: Boolean(p.is_archived),
-      members: memberStmt.all(p.id)
+    const result = await Promise.all(projects.map(async (p) => {
+      const tasksCount = await Task.countDocuments({ project: p._id });
+      return {
+        id: p._id.toString(),
+        key: p.key,
+        name: p.name,
+        description: p.description,
+        is_archived: p.is_archived,
+        created_at: p.created_at.toISOString().replace('T', ' ').substring(0, 19),
+        updated_at: p.updated_at.toISOString().replace('T', ' ').substring(0, 19),
+        members_count: p.members.length,
+        tasks_count: tasksCount,
+        members: p.members.map(m => ({
+          id: m._id.toString(),
+          name: m.name,
+          email: m.email,
+          role: m.role,
+          avatar_color: m.avatar_color
+        }))
+      };
     }));
 
     return res.json({ projects: result });
   }
 
-  static getProject(req, res) {
+  static async getProject(req, res) {
     const user = req.user;
-    const projectId = parseInt(req.params.id, 10);
+    const projectId = req.params.id;
 
-    if (isNaN(projectId)) {
-      return res.status(400).json({ error: 'Invalid project ID.' });
-    }
-
-    if (!hasProjectAccess(projectId, user)) {
+    const hasAccess = await hasProjectAccess(projectId, user);
+    if (!hasAccess) {
       return res.status(403).json({ error: 'Forbidden: You do not have access to this project.' });
     }
 
-    const stmt = db.prepare(`
-      SELECT 
-        p.id,
-        p.key,
-        p.name,
-        p.description,
-        p.owner_id,
-        u.name as owner_name,
-        u.email as owner_email,
-        p.is_archived,
-        p.created_at,
-        p.updated_at
-      FROM projects p
-      JOIN users u ON p.owner_id = u.id
-      WHERE p.id = ?
-    `);
+    const project = await Project.findById(projectId)
+      .populate('created_by', 'name email')
+      .populate('members', 'name email role avatar_color');
 
-    const project = stmt.get(projectId);
     if (!project) {
       return res.status(404).json({ error: 'Project not found.' });
     }
 
-    const members = db.prepare(`
-      SELECT u.id, u.name, u.email, u.role, u.avatar_color, pm.joined_at
-      FROM project_members pm
-      JOIN users u ON pm.user_id = u.id
-      WHERE pm.project_id = ?
-      ORDER BY u.name ASC
-    `).all(projectId);
+    const tasksCount = await Task.countDocuments({ project: project._id });
 
     return res.json({
       project: {
-        ...project,
-        is_archived: Boolean(project.is_archived),
-        members
+        id: project._id.toString(),
+        key: project.key,
+        name: project.name,
+        description: project.description,
+        is_archived: project.is_archived,
+        created_at: project.created_at.toISOString().replace('T', ' ').substring(0, 19),
+        updated_at: project.updated_at.toISOString().replace('T', ' ').substring(0, 19),
+        tasks_count: tasksCount,
+        members: project.members.map(m => ({
+          id: m._id.toString(),
+          name: m.name,
+          email: m.email,
+          role: m.role,
+          avatar_color: m.avatar_color
+        }))
       }
     });
   }
 
-  static createProject(req, res) {
+  static async createProject(req, res) {
     const user = req.user;
     const { key, name, description } = req.body;
 
@@ -126,141 +101,141 @@ export class ProjectController {
       return res.status(400).json({ error: 'Project key must be 2-8 alphanumeric characters (e.g. PROJ, ENG).' });
     }
 
-    const existing = db.prepare('SELECT id FROM projects WHERE key = ? COLLATE NOCASE').get(normalizedKey);
+    const existing = await Project.findOne({ key: normalizedKey });
     if (existing) {
       return res.status(409).json({ error: `Project key '${normalizedKey}' is already taken.` });
     }
 
-    const insertStmt = db.prepare(`
-      INSERT INTO projects (key, name, description, owner_id, is_archived, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 0, datetime('now'), datetime('now'))
-    `);
+    const project = await Project.create({
+      key: normalizedKey,
+      name: name.trim(),
+      description: description?.trim() || '',
+      created_by: user.id,
+      members: [user.id]
+    });
 
-    const result = insertStmt.run(normalizedKey, name.trim(), description?.trim() || '', user.id);
-    const projectId = result.lastInsertRowid;
-
-    db.prepare(`INSERT OR IGNORE INTO project_members (project_id, user_id, joined_at) VALUES (?, ?, datetime('now'))`).run(projectId, user.id);
-
-    const createdProject = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
-    return res.status(201).json({ project: createdProject });
+    return res.status(201).json({
+      project: {
+        id: project._id.toString(),
+        key: project.key,
+        name: project.name,
+        description: project.description,
+        is_archived: project.is_archived
+      }
+    });
   }
 
-  static updateProject(req, res) {
-    const projectId = parseInt(req.params.id, 10);
+  static async updateProject(req, res) {
+    const projectId = req.params.id;
     const { name, description } = req.body;
-
-    if (isNaN(projectId)) {
-      return res.status(400).json({ error: 'Invalid project ID.' });
-    }
 
     if (!name) {
       return res.status(400).json({ error: 'Project name is required.' });
     }
 
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ error: 'Project not found.' });
     }
 
-    db.prepare(`
-      UPDATE projects 
-      SET name = ?, description = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(name.trim(), description?.trim() || '', projectId);
+    project.name = name.trim();
+    if (description !== undefined) {
+      project.description = description.trim();
+    }
+    await project.save();
 
-    const updated = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
-    return res.json({ project: updated });
+    return res.json({
+      project: {
+        id: project._id.toString(),
+        key: project.key,
+        name: project.name,
+        description: project.description,
+        is_archived: project.is_archived
+      }
+    });
   }
 
-  static archiveProject(req, res) {
-    const projectId = parseInt(req.params.id, 10);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ error: 'Invalid project ID.' });
-    }
-
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+  static async archiveProject(req, res) {
+    const projectId = req.params.id;
+    const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ error: 'Project not found.' });
     }
 
-    db.prepare(`UPDATE projects SET is_archived = 1, updated_at = datetime('now') WHERE id = ?`).run(projectId);
+    project.is_archived = true;
+    await project.save();
     return res.json({ message: 'Project archived successfully.' });
   }
 
-  static restoreProject(req, res) {
-    const projectId = parseInt(req.params.id, 10);
-    if (isNaN(projectId)) {
-      return res.status(400).json({ error: 'Invalid project ID.' });
-    }
-
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+  static async restoreProject(req, res) {
+    const projectId = req.params.id;
+    const project = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ error: 'Project not found.' });
     }
 
-    db.prepare(`UPDATE projects SET is_archived = 0, updated_at = datetime('now') WHERE id = ?`).run(projectId);
+    project.is_archived = false;
+    await project.save();
     return res.json({ message: 'Project restored successfully.' });
   }
 
-  static addMember(req, res) {
-    const projectId = parseInt(req.params.id, 10);
+  static async addMember(req, res) {
+    const projectId = req.params.id;
     const { userId } = req.body;
 
-    if (isNaN(projectId) || !userId) {
+    if (!projectId || !userId) {
       return res.status(400).json({ error: 'Project ID and user ID are required.' });
     }
 
-    const user = db.prepare('SELECT id, name FROM users WHERE id = ?').get(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
+    const [project, user] = await Promise.all([
+      Project.findById(projectId),
+      User.findById(userId)
+    ]);
 
-    db.prepare(`
-      INSERT OR IGNORE INTO project_members (project_id, user_id, joined_at)
-      VALUES (?, ?, datetime('now'))
-    `).run(projectId, userId);
+    if (!project) return res.status(404).json({ error: 'Project not found.' });
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    if (!project.members.some(m => m.toString() === userId.toString())) {
+      project.members.push(user._id);
+      await project.save();
+    }
 
     return res.json({ message: `User ${user.name} added to project.` });
   }
 
-  static removeMember(req, res) {
-    const projectId = parseInt(req.params.id, 10);
-    const userId = parseInt(req.params.userId, 10);
+  static async removeMember(req, res) {
+    const projectId = req.params.id;
+    const userId = req.params.userId;
     const currentManager = req.user;
 
-    if (isNaN(projectId) || isNaN(userId)) {
-      return res.status(400).json({ error: 'Invalid project ID or user ID.' });
+    const [project, user] = await Promise.all([
+      Project.findById(projectId),
+      User.findById(userId)
+    ]);
+
+    if (!project) return res.status(404).json({ error: 'Project not found.' });
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    // 1. Unassign user from all tasks in this project
+    const assignedTasks = await Task.find({ project: project._id, assignees: user._id });
+
+    for (const task of assignedTasks) {
+      task.assignees = task.assignees.filter(a => a.toString() !== user._id.toString());
+      await task.save();
+
+      await AuditService.logActivity({
+        taskId: task._id,
+        userId: currentManager.id,
+        activityType: 'UNASSIGNED',
+        oldValue: `${user.name} (${user._id})`,
+        newValue: null,
+        commentText: 'User was removed from the project and unassigned.'
+      });
     }
 
-    const user = db.prepare('SELECT id, name FROM users WHERE id = ?').get(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    const removeTransaction = db.transaction(() => {
-      const assignedTasks = db.prepare(`
-        SELECT t.id, t.title 
-        FROM tasks t
-        JOIN task_assignees ta ON t.id = ta.task_id
-        WHERE t.project_id = ? AND ta.user_id = ?
-      `).all(projectId, userId);
-
-      for (const task of assignedTasks) {
-        db.prepare('DELETE FROM task_assignees WHERE task_id = ? AND user_id = ?').run(task.id, userId);
-        AuditService.logActivity({
-          taskId: task.id,
-          userId: currentManager.id,
-          activityType: 'UNASSIGNED',
-          oldValue: `${user.name} (${user.id})`,
-          newValue: null,
-          commentText: `User was removed from the project and unassigned.`
-        });
-      }
-
-      db.prepare('DELETE FROM project_members WHERE project_id = ? AND user_id = ?').run(projectId, userId);
-    });
-
-    removeTransaction();
+    // 2. Remove user from project members
+    project.members = project.members.filter(m => m.toString() !== user._id.toString());
+    await project.save();
 
     return res.json({ message: `User ${user.name} removed from project and unassigned from its tasks.` });
   }
