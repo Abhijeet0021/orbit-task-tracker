@@ -51,20 +51,20 @@ export const TaskTimeline = ({ taskId, timeline, onRefresh }) => {
           <Clock className="w-4 h-4 text-slate-400" />
           Immutable Activity History & Comments ({timeline.length})
         </h4>
-        <span className="text-[11px] text-slate-400 font-medium italic">
+        <span className="text-xs text-slate-400 font-medium italic">
           Audit trail cannot be edited or deleted
         </span>
       </div>
 
       <form onSubmit={handleAddComment} className="space-y-2">
-        {error && <p className="text-xs text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-rose-600">{error}</p>}
         <div className="relative">
           <textarea
             rows={2}
             value={commentText}
             onChange={e => setCommentText(e.target.value)}
             placeholder="Add an update or comment to this task timeline..."
-            className="w-full rounded-xl border border-slate-200 p-3 pr-12 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50"
+            className="w-full rounded-xl border border-slate-200 p-3 pr-12 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50"
           />
           <button
             type="submit"
@@ -84,19 +84,19 @@ export const TaskTimeline = ({ taskId, timeline, onRefresh }) => {
               {renderIcon(act.activity_type)}
             </div>
 
-            <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 text-xs">
+            <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100 text-sm">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-slate-900">
                     {act.user_name || 'System'}
                   </span>
                   {act.user_role && (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-medium">
+                    <span className="text-[11px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-medium">
                       {act.user_role}
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-slate-400 font-mono">
+                <span className="text-xs text-slate-400 font-mono">
                   {new Date(act.created_at).toLocaleString()}
                 </span>
               </div>

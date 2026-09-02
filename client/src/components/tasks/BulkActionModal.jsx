@@ -10,22 +10,22 @@ export const BulkResultModal = ({ isOpen, onClose, result }) => {
       <div className="space-y-4">
         <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Processed</p>
+            <p className="text-sm font-bold uppercase tracking-wider text-slate-500">Total Processed</p>
             <p className="text-2xl font-black text-slate-900">{result.summary.total} tasks</p>
           </div>
           <div className="flex gap-4">
             <div className="text-right">
-              <span className="text-xs font-semibold text-emerald-600">Succeeded</span>
+              <span className="text-sm font-semibold text-emerald-600">Succeeded</span>
               <p className="text-xl font-bold text-emerald-700">{result.summary.succeeded}</p>
             </div>
             <div className="text-right">
-              <span className="text-xs font-semibold text-rose-600">Rejected / Failed</span>
+              <span className="text-sm font-semibold text-rose-600">Rejected / Failed</span>
               <p className="text-xl font-bold text-rose-700">{result.summary.failed}</p>
             </div>
           </div>
         </div>
 
-        <p className="text-xs text-slate-500 font-medium">
+        <p className="text-sm text-slate-500 font-medium">
           Requirement 7: The system evaluates every task independently and reports per-item status and specific rejection reasons.
         </p>
 
@@ -33,7 +33,7 @@ export const BulkResultModal = ({ isOpen, onClose, result }) => {
           {result.results.map((item, idx) => (
             <div
               key={idx}
-              className={`p-3 rounded-xl border flex items-start gap-3 text-xs transition ${
+              className={`p-3 rounded-xl border flex items-start gap-3 text-sm transition ${
                 item.success
                   ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900'
                   : 'bg-rose-50/50 border-rose-200 text-rose-900'
@@ -64,7 +64,7 @@ export const BulkResultModal = ({ isOpen, onClose, result }) => {
         <div className="flex justify-end pt-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition"
+            className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition"
           >
             Close Report
           </button>

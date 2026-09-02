@@ -38,16 +38,16 @@ export const MyTasksPage = () => {
     <div className="space-y-6 animate-in fade-in duration-200">
       <div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Assigned Tasks</h1>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-sm text-slate-500 mt-1">
           Requirement 5: One consolidated list of everything assigned to you across all projects.
         </p>
       </div>
 
       <div className="rounded-3xl bg-white border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[46rem] text-left border-collapse text-xs">
+        <table className="w-full min-w-[54rem] text-left border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+            <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-xs">
               <th className="py-3.5 px-4">Task</th>
               <th className="py-3.5 px-4">Project</th>
               <th className="py-3.5 px-4">Status</th>

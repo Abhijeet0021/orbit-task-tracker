@@ -77,7 +77,7 @@ export const ProjectsPage = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Client Projects</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             {user?.role === 'MANAGER' 
               ? 'Manage client engagements, project memberships, and active scopes.' 
               : 'Client projects you are assigned to as an active team member.'}
@@ -85,7 +85,7 @@ export const ProjectsPage = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 cursor-pointer bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-xs">
             <input
               type="checkbox"
               checked={includeArchived}
@@ -104,7 +104,7 @@ export const ProjectsPage = () => {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Filter projects by key or name..."
-          className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden shadow-xs"
+          className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden shadow-xs"
         />
       </div>
 
@@ -114,7 +114,7 @@ export const ProjectsPage = () => {
         <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 shadow-xs">
           <FolderKanban className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <h3 className="text-sm font-bold text-slate-700">No projects found</h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-sm text-slate-400 mt-1">
             {includeArchived ? 'Try adjusting your search criteria.' : 'No active projects matching criteria or assigned to you.'}
           </p>
         </div>
@@ -132,15 +132,15 @@ export const ProjectsPage = () => {
             >
               <div>
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="font-mono text-xs font-black px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
+                  <span className="font-mono text-sm font-black px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
                     {project.key}
                   </span>
                   {project.is_archived ? (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
                       Archived
                     </span>
                   ) : (
-                    <span className="text-[11px] font-semibold text-slate-400">
+                    <span className="text-xs font-semibold text-slate-400">
                       Owner: {project.owner_name}
                     </span>
                   )}
@@ -149,13 +149,13 @@ export const ProjectsPage = () => {
                 <h3 className="text-base font-extrabold text-slate-900 group-hover:text-blue-600 transition mb-1">
                   {project.name}
                 </h3>
-                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+                <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">
                   {project.description || 'No description provided.'}
                 </p>
               </div>
 
               <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-3 text-xs text-slate-600 font-medium">
+                <div className="flex items-center gap-3 text-sm text-slate-600 font-medium">
                   <span className="flex items-center gap-1">
                     <ListTodo className="w-3.5 h-3.5 text-slate-400" />
                     {project.tasks_count || 0} tasks

@@ -224,7 +224,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
       ) : task ? (
         <div className="space-y-6">
           {error && (
-            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center justify-between gap-2 animate-in fade-in">
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-semibold flex items-center justify-between gap-2 animate-in fade-in">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                 <span>{error}</span>
@@ -239,7 +239,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
           <div className="p-5 rounded-2xl bg-gradient-to-r from-slate-50 via-blue-50/30 to-indigo-50/40 border border-slate-200 shadow-2xs space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-black px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-900 shadow-xs flex items-center gap-1.5">
+                <span className="font-mono text-sm font-black px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-900 shadow-xs flex items-center gap-1.5">
                   {task.code}
                   <button 
                     onClick={handleCopyCode}
@@ -252,7 +252,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                 <StatusBadge status={task.status} />
                 <PriorityBadge priority={task.priority} />
                 {task.is_overdue && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-sm font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
                     <Clock className="w-3 h-3" /> Overdue
                   </span>
                 )}
@@ -265,7 +265,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                     <button
                       onClick={() => handleTransitionStatus(t.status)}
                       disabled={saving || !t.allowed}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      className={`px-3 py-1.5 rounded-xl text-sm font-bold transition flex items-center gap-1.5 ${
                         t.allowed
                           ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-xs active:scale-95'
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
@@ -275,7 +275,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                       <span>{t.label}</span>
                     </button>
                     {!t.allowed && t.blockReason && (
-                      <div className="absolute right-0 bottom-full mb-2 hidden group-hover:block z-50 w-64 p-2.5 rounded-xl bg-slate-900 text-white text-[11px] font-medium shadow-xl">
+                      <div className="absolute right-0 bottom-full mb-2 hidden group-hover:block z-50 w-64 p-2.5 rounded-xl bg-slate-900 text-white text-xs font-medium shadow-xl">
                         ⚠️ {t.blockReason}
                       </div>
                     )}
@@ -318,7 +318,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                       }`}
                     >
                       <div 
-                        className={`w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold transition-all shadow-xs ${
+                        className={`w-8 h-8 rounded-full flex items-center justify-center font-mono text-sm font-bold transition-all shadow-xs ${
                           isCurrent
                             ? 'bg-blue-600 text-white ring-4 ring-blue-100 scale-110'
                             : isPast
@@ -330,7 +330,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                       >
                         {isPast ? <Check className="w-4 h-4" /> : step.num}
                       </div>
-                      <span className={`text-[11px] mt-1.5 font-bold tracking-tight ${
+                      <span className={`text-xs mt-1.5 font-bold tracking-tight ${
                         isCurrent ? 'text-blue-700' : isPast ? 'text-emerald-700' : 'text-slate-400'
                       }`}>
                         {step.label}
@@ -342,7 +342,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
 
               {/* Blocked State Notice */}
               {isBlocked && (
-                <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center justify-between gap-3 animate-in fade-in">
+                <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium flex items-center justify-between gap-3 animate-in fade-in">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
                     <span>
@@ -357,7 +357,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-5">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                <label className="block text-sm font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Title
                 </label>
                 <input
@@ -370,7 +370,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                <label className="block text-sm font-bold uppercase tracking-wider text-slate-500 mb-1">
                   Description
                 </label>
                 <textarea
@@ -379,18 +379,18 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                   onChange={e => setDescription(e.target.value)}
                   onBlur={handleUpdateField}
                   placeholder="Task details and acceptance criteria..."
-                  className="w-full text-xs text-slate-800 rounded-xl border border-slate-200 p-3.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-white shadow-2xs leading-relaxed"
+                  className="w-full text-sm text-slate-800 rounded-xl border border-slate-200 p-3.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-white shadow-2xs leading-relaxed"
                 />
               </div>
 
               {/* Blocking Dependencies */}
               <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                     <ShieldAlert className="w-4 h-4 text-purple-600" />
                     Blocking Dependencies ({task.blockers.length})
                   </h4>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-xs text-slate-400">
                     Must be DONE before this task completes
                   </span>
                 </div>
@@ -400,10 +400,10 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                     {task.blockers.map(b => (
                       <div
                         key={b.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition text-xs"
+                        className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition text-sm"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                          <span className="font-mono font-bold text-[11px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
                             {b.blocker_code}
                           </span>
                           <span className="font-semibold text-slate-800 line-clamp-1">
@@ -422,7 +422,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400 italic py-1">
+                  <p className="text-sm text-slate-400 italic py-1">
                     No blocking tasks. Clear path to completion.
                   </p>
                 )}
@@ -431,7 +431,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                   <select
                     value={selectedBlockerId}
                     onChange={e => setSelectedBlockerId(e.target.value)}
-                    className="flex-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs text-slate-700 bg-slate-50 outline-hidden"
+                    className="flex-1 rounded-xl border border-slate-200 px-3 py-1.5 text-sm text-slate-700 bg-slate-50 outline-hidden"
                   >
                     <option value="">Add blocking task from {task.project_key}...</option>
                     {projectTasks.map(t => (
@@ -443,7 +443,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                   <button
                     onClick={handleAddBlocker}
                     disabled={!selectedBlockerId}
-                    className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 disabled:opacity-40 transition shadow-xs"
+                    className="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 disabled:opacity-40 transition shadow-xs"
                   >
                     Add Blocker
                   </button>
@@ -464,16 +464,16 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
             <div className="space-y-5">
               <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-sm font-bold uppercase tracking-wider text-slate-400 mb-1">
                     Project
                   </label>
-                  <p className="text-xs font-bold text-slate-800">
+                  <p className="text-sm font-bold text-slate-800">
                     {task.project_name} ({task.project_key})
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-sm font-bold uppercase tracking-wider text-slate-400 mb-1">
                     Priority
                   </label>
                   <select
@@ -482,7 +482,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                       setPriority(e.target.value);
                       setTimeout(handleUpdateField, 100);
                     }}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-800 bg-slate-50 outline-hidden"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-800 bg-slate-50 outline-hidden"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -492,7 +492,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  <label className="block text-sm font-bold uppercase tracking-wider text-slate-400 mb-1">
                     Due Date
                   </label>
                   <input
@@ -502,13 +502,13 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                       setDueDate(e.target.value);
                       setTimeout(handleUpdateField, 100);
                     }}
-                    className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs text-slate-800 bg-slate-50 outline-hidden font-mono"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-sm text-slate-800 bg-slate-50 outline-hidden font-mono"
                   />
                 </div>
 
                 {/* Assignees */}
                 <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <label className="block text-sm font-bold uppercase tracking-wider text-slate-400">
                     Assigned Team Members ({task.assignees.length})
                   </label>
 
@@ -516,11 +516,11 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                     {task.assignees.map(a => (
                       <div
                         key={a.id}
-                        className="flex items-center justify-between p-1.5 rounded-xl border border-slate-100 bg-slate-50 text-xs"
+                        className="flex items-center justify-between p-1.5 rounded-xl border border-slate-100 bg-slate-50 text-sm"
                       >
                         <div className="flex items-center gap-2">
                           <div 
-                            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-2xs"
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white shadow-2xs"
                             style={{ backgroundColor: a.avatar_color || '#3b82f6' }}
                           >
                             {a.name[0]}
@@ -537,7 +537,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                       </div>
                     ))}
                     {task.assignees.length === 0 && (
-                      <p className="text-xs text-slate-400 italic">No members assigned.</p>
+                      <p className="text-sm text-slate-400 italic">No members assigned.</p>
                     )}
                   </div>
 
@@ -545,7 +545,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                     <select
                       value={selectedMemberId}
                       onChange={e => setSelectedMemberId(e.target.value)}
-                      className="flex-1 rounded-xl border border-slate-200 px-2 py-1.5 text-xs text-slate-700 bg-slate-50 outline-hidden"
+                      className="flex-1 rounded-xl border border-slate-200 px-2 py-1.5 text-sm text-slate-700 bg-slate-50 outline-hidden"
                     >
                       <option value="">Assign member...</option>
                       {projectMembers
@@ -557,7 +557,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                     <button
                       onClick={() => handleAddAssignee(selectedMemberId)}
                       disabled={!selectedMemberId}
-                      className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-40 transition shadow-2xs"
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 transition shadow-2xs"
                     >
                       Add
                     </button>
@@ -569,7 +569,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                   <div className="pt-4 border-t border-slate-100">
                     <button
                       onClick={handleDeleteTask}
-                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold hover:bg-rose-100 hover:border-rose-300 transition"
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-bold hover:bg-rose-100 hover:border-rose-300 transition"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                       <span>Delete Task (Manager Only)</span>

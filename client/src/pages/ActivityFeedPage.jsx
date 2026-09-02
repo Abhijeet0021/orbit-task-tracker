@@ -98,7 +98,7 @@ export const ActivityFeedPage = () => {
             <Activity className="w-6 h-6 text-blue-600" />
             Global Cross-Project Activity Ledger
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             Append-only, immutable audit trail of all organizational changes, assignments, blockers, and comments.
           </p>
         </div>
@@ -106,7 +106,7 @@ export const ActivityFeedPage = () => {
 
       {/* Filter Bar */}
       <div className="p-4 rounded-3xl bg-white border border-slate-200 shadow-xs flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mr-2 uppercase tracking-wider">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-400 mr-2 uppercase tracking-wider">
           <Filter className="w-3.5 h-3.5" />
           <span>Filters:</span>
         </div>
@@ -114,7 +114,7 @@ export const ActivityFeedPage = () => {
         <select
           value={selectedProjectId}
           onChange={e => setSelectedProjectId(e.target.value)}
-          className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 outline-hidden"
+          className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 outline-hidden"
         >
           <option value="">All Projects</option>
           {projects.map(p => (
@@ -125,7 +125,7 @@ export const ActivityFeedPage = () => {
         <select
           value={selectedUserId}
           onChange={e => setSelectedUserId(e.target.value)}
-          className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 outline-hidden"
+          className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 outline-hidden"
         >
           <option value="">All Team Members</option>
           {users.map(u => (
@@ -136,7 +136,7 @@ export const ActivityFeedPage = () => {
         <select
           value={selectedType}
           onChange={e => setSelectedType(e.target.value)}
-          className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 outline-hidden"
+          className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700 outline-hidden"
         >
           <option value="">All Event Types</option>
           <option value="STATUS_CHANGED">Status Changes</option>
@@ -154,7 +154,7 @@ export const ActivityFeedPage = () => {
               setSelectedUserId('');
               setSelectedType('');
             }}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition"
+            className="px-3 py-1.5 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition"
           >
             Clear Filters
           </button>
@@ -164,13 +164,13 @@ export const ActivityFeedPage = () => {
       {/* Activity Timeline Stream */}
       <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
         {loading && (
-          <div className="py-20 text-center text-slate-400 text-xs font-medium">
+          <div className="py-20 text-center text-slate-400 text-sm font-medium">
             Loading activity stream...
           </div>
         )}
 
         {!loading && activities.length === 0 && (
-          <div className="py-20 text-center text-slate-400 text-xs italic">
+          <div className="py-20 text-center text-slate-400 text-sm italic">
             No activity records found matching the filter criteria.
           </div>
         )}
@@ -194,20 +194,20 @@ export const ActivityFeedPage = () => {
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2">
                       <div 
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
                         style={{ backgroundColor: item.avatar_color || '#3b82f6' }}
                       >
                         {item.user_name ? item.user_name[0] : 'S'}
                       </div>
-                      <span className="text-xs font-bold text-slate-900">
+                      <span className="text-sm font-bold text-slate-900">
                         {item.user_name || 'System / Initializer'}
                       </span>
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         in <span className="font-semibold text-slate-700">{item.project_name}</span>
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
                       <Clock className="w-3 h-3" />
                       <span>{item.created_at}</span>
                     </div>
@@ -215,17 +215,17 @@ export const ActivityFeedPage = () => {
 
                   {/* Task Context Link */}
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="font-mono text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                    <span className="font-mono text-[11px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
                       {item.project_key}-{item.task_number}
                     </span>
-                    <span className="text-xs font-bold text-slate-800 hover:text-blue-600 transition">
+                    <span className="text-sm font-bold text-slate-800 hover:text-blue-600 transition">
                       {item.task_title}
                     </span>
                   </div>
 
                   {/* Content Specifics */}
                   {item.activity_type === 'STATUS_CHANGED' && (
-                    <div className="flex items-center gap-2 text-xs pt-1">
+                    <div className="flex items-center gap-2 text-sm pt-1">
                       <StatusBadge status={item.old_value} />
                       <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
                       <StatusBadge status={item.new_value} />
@@ -233,37 +233,37 @@ export const ActivityFeedPage = () => {
                   )}
 
                   {item.activity_type === 'COMMENT_ADDED' && (
-                    <div className="p-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 italic mt-1 leading-relaxed">
+                    <div className="p-3 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 italic mt-1 leading-relaxed">
                       "{item.comment_text}"
                     </div>
                   )}
 
                   {item.activity_type === 'ASSIGNED' && (
-                    <p className="text-xs text-slate-600">
+                    <p className="text-sm text-slate-600">
                       Assigned to <span className="font-bold text-slate-900">{item.new_value}</span>
                     </p>
                   )}
 
                   {item.activity_type === 'UNASSIGNED' && (
-                    <p className="text-xs text-slate-600">
+                    <p className="text-sm text-slate-600">
                       Unassigned <span className="font-bold text-slate-900">{item.old_value}</span>
                     </p>
                   )}
 
                   {item.activity_type === 'BLOCKER_ADDED' && (
-                    <p className="text-xs font-semibold text-purple-700">
+                    <p className="text-sm font-semibold text-purple-700">
                       {item.new_value}
                     </p>
                   )}
 
                   {item.activity_type === 'BLOCKER_REMOVED' && (
-                    <p className="text-xs font-semibold text-emerald-700">
+                    <p className="text-sm font-semibold text-emerald-700">
                       Removed dependency blocker: {item.old_value}
                     </p>
                   )}
 
                   {item.activity_type === 'FIELD_UPDATED' && (
-                    <p className="text-xs text-slate-600">
+                    <p className="text-sm text-slate-600">
                       Updated <span className="font-semibold text-slate-800">{item.field_name}</span> from{' '}
                       <span className="font-mono text-slate-500">{item.old_value}</span> to{' '}
                       <span className="font-mono font-bold text-slate-900">{item.new_value}</span>
@@ -271,7 +271,7 @@ export const ActivityFeedPage = () => {
                   )}
 
                   {item.activity_type === 'CREATED' && (
-                    <p className="text-xs text-slate-600 font-medium">
+                    <p className="text-sm text-slate-600 font-medium">
                       {item.new_value}
                     </p>
                   )}

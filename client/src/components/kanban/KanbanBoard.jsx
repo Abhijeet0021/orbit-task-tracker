@@ -52,12 +52,12 @@ export const KanbanBoard = ({ tasks, onTaskClick, onRefresh }) => {
   return (
     <div className="space-y-4">
       {errorToast && (
-        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center justify-between shadow-md animate-in fade-in">
+        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-semibold flex items-center justify-between shadow-md animate-in fade-in">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
             <span>{errorToast}</span>
           </div>
-          <button onClick={() => setErrorToast(null)} className="text-rose-500 hover:text-rose-800 text-xs font-bold">
+          <button onClick={() => setErrorToast(null)} className="text-rose-500 hover:text-rose-800 text-sm font-bold">
             Dismiss
           </button>
         </div>
@@ -73,10 +73,10 @@ export const KanbanBoard = ({ tasks, onTaskClick, onRefresh }) => {
                 className={`flex flex-col rounded-2xl ${col.color} border ${col.border} p-3.5 min-h-[500px] shadow-xs`}
               >
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-700">
                     {col.title}
                   </h3>
-                  <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-slate-600 shadow-xs border border-slate-200">
+                  <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-white text-xs font-bold text-slate-600 shadow-xs border border-slate-200">
                     {colTasks.length}
                   </span>
                 </div>
@@ -105,7 +105,7 @@ export const KanbanBoard = ({ tasks, onTaskClick, onRefresh }) => {
                               <div className="flex items-center justify-between gap-2 mb-2">
                                 <span 
                                   onClick={(e) => handleCopyCode(e, task.code, task.id)}
-                                  className="font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-700 flex items-center gap-1"
+                                  className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-700 flex items-center gap-1"
                                   title="Click to copy code"
                                 >
                                   {task.code}
@@ -118,11 +118,11 @@ export const KanbanBoard = ({ tasks, onTaskClick, onRefresh }) => {
                                 <PriorityBadge priority={task.priority} />
                               </div>
 
-                              <p className="text-xs font-bold text-slate-900 line-clamp-2 leading-relaxed mb-2">
+                              <p className="text-sm font-bold text-slate-900 line-clamp-2 leading-relaxed mb-2">
                                 {task.title}
                               </p>
 
-                              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
                                 {task.due_date ? (
                                   <span className={`flex items-center gap-1 font-medium ${task.is_overdue ? 'text-rose-600 font-bold' : ''}`}>
                                     <Clock className="w-3 h-3" />
@@ -143,7 +143,7 @@ export const KanbanBoard = ({ tasks, onTaskClick, onRefresh }) => {
                                   {task.assignees.map(a => (
                                     <div
                                       key={a.id}
-                                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-white"
+                                      className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white ring-2 ring-white"
                                       style={{ backgroundColor: a.avatar_color || '#3b82f6' }}
                                       title={a.name}
                                     >

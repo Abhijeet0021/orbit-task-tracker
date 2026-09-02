@@ -183,7 +183,7 @@ export const ProjectDetailPage = () => {
     return (
       <div className="p-12 text-center rounded-3xl bg-white border border-slate-200">
         <p className="text-sm font-bold text-rose-600">Project not found or access denied.</p>
-        <Link to="/projects" className="mt-4 inline-block text-xs font-semibold text-blue-600 hover:underline">
+        <Link to="/projects" className="mt-4 inline-block text-sm font-semibold text-blue-600 hover:underline">
           &larr; Back to projects
         </Link>
       </div>
@@ -198,7 +198,7 @@ export const ProjectDetailPage = () => {
       <div className="p-6 md:p-8 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
-            <Link to="/projects" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition mb-1">
+            <Link to="/projects" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-blue-600 transition mb-1">
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to Projects</span>
             </Link>
@@ -208,18 +208,18 @@ export const ProjectDetailPage = () => {
               </span>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">{project.name}</h1>
               {project.is_archived && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-200 text-slate-700">
+                <span className="px-2.5 py-0.5 rounded-full text-sm font-bold bg-slate-200 text-slate-700">
                   Archived
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 max-w-3xl leading-relaxed">{project.description || 'No description provided.'}</p>
+            <p className="text-sm text-slate-500 max-w-3xl leading-relaxed">{project.description || 'No description provided.'}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsCreateTaskOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition shadow-sm shadow-blue-500/20"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition shadow-sm shadow-blue-500/20"
             >
               <Plus className="w-4 h-4" />
               <span>New Task</span>
@@ -229,21 +229,21 @@ export const ProjectDetailPage = () => {
               <>
                 <button
                   onClick={() => setIsEditProjectOpen(true)}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition"
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-sm font-semibold hover:bg-slate-100 transition"
                 >
                   Edit Details
                 </button>
                 {project.is_archived ? (
                   <button
                     onClick={handleRestoreProject}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold hover:bg-emerald-100 transition"
                   >
                     <RotateCcw className="w-3.5 h-3.5" /> Restore
                   </button>
                 ) : (
                   <button
                     onClick={handleArchiveProject}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold hover:bg-rose-100 transition"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-sm font-semibold hover:bg-rose-100 transition"
                   >
                     <Archive className="w-3.5 h-3.5" /> Archive
                   </button>
@@ -255,12 +255,12 @@ export const ProjectDetailPage = () => {
 
         <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Team Members:</span>
+            <span className="text-sm font-bold uppercase tracking-wider text-slate-400">Team Members:</span>
             <div className="flex flex-wrap items-center gap-2">
               {project.members?.map(m => (
                 <div
                   key={m.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200 text-xs group"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200 text-sm group"
                 >
                   <div
                     className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
@@ -270,7 +270,7 @@ export const ProjectDetailPage = () => {
                   </div>
                   <span className="font-semibold text-slate-800">{m.name}</span>
                   {m.id === project.owner_id && (
-                    <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-1 rounded">Owner</span>
+                    <span className="text-[11px] text-amber-700 font-bold bg-amber-50 px-1 rounded">Owner</span>
                   )}
                   {user?.role === 'MANAGER' && m.id !== project.owner_id && (
                     <button
@@ -289,7 +289,7 @@ export const ProjectDetailPage = () => {
           {user?.role === 'MANAGER' && nonMembers.length > 0 && (
             <button
               onClick={() => setIsAddMemberOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>Add Member</span>
@@ -302,7 +302,7 @@ export const ProjectDetailPage = () => {
         <div className="flex items-center gap-2 p-1 rounded-2xl bg-white border border-slate-200 shadow-xs">
           <button
             onClick={() => setViewMode('list')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-bold transition ${
               viewMode === 'list' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -311,7 +311,7 @@ export const ProjectDetailPage = () => {
           </button>
           <button
             onClick={() => setViewMode('kanban')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-bold transition ${
               viewMode === 'kanban' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -333,9 +333,9 @@ export const ProjectDetailPage = () => {
       ) : (
         <div className="rounded-3xl bg-white border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[46rem] text-left border-collapse text-xs">
+          <table className="w-full min-w-[54rem] text-left border-collapse text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+              <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-xs">
                 <th className="py-3.5 px-4">Task</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4">Priority</th>
@@ -375,7 +375,7 @@ export const ProjectDetailPage = () => {
                       {task.assignees.map(a => (
                         <div
                           key={a.id}
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-white"
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white ring-2 ring-white"
                           style={{ backgroundColor: a.avatar_color || '#3b82f6' }}
                           title={a.name}
                         >
@@ -439,13 +439,13 @@ export const ProjectDetailPage = () => {
       >
         <form onSubmit={handleCreateTask} className="space-y-4">
           {createTaskError && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-semibold">
               {createTaskError}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Task Title *
             </label>
             <input
@@ -454,12 +454,12 @@ export const ProjectDetailPage = () => {
               value={newTaskTitle}
               onChange={e => setNewTaskTitle(e.target.value)}
               placeholder="e.g. Integrate Redis session cache"
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50 font-semibold"
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50 font-semibold"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Description
             </label>
             <textarea
@@ -467,19 +467,19 @@ export const ProjectDetailPage = () => {
               value={newTaskDesc}
               onChange={e => setNewTaskDesc(e.target.value)}
               placeholder="Requirements and implementation details..."
-              className="w-full rounded-xl border border-slate-200 p-3 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50"
+              className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
                 Priority
               </label>
               <select
                 value={newTaskPriority}
                 onChange={e => setNewTaskPriority(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50/50 outline-hidden font-semibold"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 outline-hidden font-semibold"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
@@ -489,20 +489,20 @@ export const ProjectDetailPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
                 Due Date
               </label>
               <input
                 type="date"
                 value={newTaskDueDate}
                 onChange={e => setNewTaskDueDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50/50 outline-hidden"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 outline-hidden"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Assign Team Members (Project members only)
             </label>
             <div className="flex flex-wrap gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 max-h-32 overflow-y-auto">
@@ -519,7 +519,7 @@ export const ProjectDetailPage = () => {
                         setNewTaskAssignees([...newTaskAssignees, m.id]);
                       }
                     }}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                    className={`px-2.5 py-1 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 ${
                       isSelected
                         ? 'bg-blue-600 text-white shadow-xs'
                         : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -534,7 +534,7 @@ export const ProjectDetailPage = () => {
 
           {tasks.length > 0 && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
                 Blocked By (Optional tasks in this project)
               </label>
               <div className="flex flex-wrap gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/50 max-h-32 overflow-y-auto">
@@ -551,13 +551,13 @@ export const ProjectDetailPage = () => {
                           setNewTaskBlockers([...newTaskBlockers, t.id]);
                         }
                       }}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 ${
                         isSelected
                           ? 'bg-purple-600 text-white shadow-xs'
                           : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      <span className="font-mono text-[10px]">{t.code}</span>
+                      <span className="font-mono text-[11px]">{t.code}</span>
                       <span className="truncate max-w-[120px]">{t.title}</span>
                     </button>
                   );
@@ -570,13 +570,13 @@ export const ProjectDetailPage = () => {
             <button
               type="button"
               onClick={() => setIsCreateTaskOpen(false)}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition shadow-sm shadow-blue-500/20"
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition shadow-sm shadow-blue-500/20"
             >
               Create Task
             </button>
@@ -592,14 +592,14 @@ export const ProjectDetailPage = () => {
       >
         <form onSubmit={handleAddMember} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Select User
             </label>
             <select
               value={memberToAdd}
               onChange={e => setMemberToAdd(e.target.value)}
               required
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs text-slate-800 outline-hidden bg-slate-50/50 font-semibold"
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-800 outline-hidden bg-slate-50/50 font-semibold"
             >
               <option value="">Select a user...</option>
               {nonMembers.map(u => (
@@ -614,14 +614,14 @@ export const ProjectDetailPage = () => {
             <button
               type="button"
               onClick={() => setIsAddMemberOpen(false)}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!memberToAdd}
-              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition"
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition"
             >
               Add Member
             </button>
@@ -637,7 +637,7 @@ export const ProjectDetailPage = () => {
       >
         <form onSubmit={handleEditProject} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Project Name *
             </label>
             <input
@@ -645,35 +645,35 @@ export const ProjectDetailPage = () => {
               required
               value={editName}
               onChange={e => setEditName(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50 font-semibold"
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50 font-semibold"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Owner
             </label>
             <select
               value={editOwnerId}
               onChange={e => setEditOwnerId(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-xs bg-slate-50/50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden font-semibold"
+              className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm bg-slate-50/50 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden font-semibold"
             >
               {allUsers.map(u => (
                 <option key={u.id} value={u.id}>{u.name}</option>
               ))}
             </select>
-            <p className="text-[11px] text-slate-500 mt-1">Changing the owner adds them to the project if they are not already a member.</p>
+            <p className="text-xs text-slate-500 mt-1">Changing the owner adds them to the project if they are not already a member.</p>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Description
             </label>
             <textarea
               rows={3}
               value={editDesc}
               onChange={e => setEditDesc(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 p-3 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50"
+              className="w-full rounded-xl border border-slate-200 p-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden bg-slate-50/50"
             />
           </div>
 
@@ -681,13 +681,13 @@ export const ProjectDetailPage = () => {
             <button
               type="button"
               onClick={() => setIsEditProjectOpen(false)}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition"
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition"
             >
               Save Changes
             </button>

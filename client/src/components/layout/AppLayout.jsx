@@ -116,12 +116,12 @@ export const AppLayout = () => {
       >
         <form onSubmit={handleCreateProject} className="space-y-4">
           {error && (
-            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm font-medium">
               {error}
             </div>
           )}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Project Key (e.g. ENG, DES, BIL) *
             </label>
             <input
@@ -133,11 +133,11 @@ export const AppLayout = () => {
               placeholder="e.g. ALP"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm uppercase font-mono font-bold focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
             />
-            <p className="text-[11px] text-slate-500 mt-1">Short unique prefix for project task IDs.</p>
+            <p className="text-xs text-slate-500 mt-1">Short unique prefix for project task IDs.</p>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Project Name *
             </label>
             <input
@@ -151,7 +151,7 @@ export const AppLayout = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Owner
             </label>
             <select
@@ -164,11 +164,11 @@ export const AppLayout = () => {
                 <option key={u.id} value={u.id}>{u.name}</option>
               ))}
             </select>
-            <p className="text-[11px] text-slate-500 mt-1">The owner is accountable for the project and is always a member of it.</p>
+            <p className="text-xs text-slate-500 mt-1">The owner is accountable for the project and is always a member of it.</p>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-sm font-bold uppercase tracking-wider text-slate-600 mb-1">
               Description
             </label>
             <textarea

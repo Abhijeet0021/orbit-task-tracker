@@ -20,7 +20,7 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white text-xs font-semibold gap-3">
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white text-sm font-semibold gap-3">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           <span>Authenticating...</span>
@@ -31,7 +31,7 @@ const ProtectedRoute = ({ children }) => {
             localStorage.removeItem('token');
             window.location.href = '/login';
           }}
-          className="text-slate-500 hover:text-slate-300 text-[11px] underline transition-colors cursor-pointer mt-2"
+          className="text-slate-500 hover:text-slate-300 text-xs underline transition-colors cursor-pointer mt-2"
         >
           Taking too long? Click to reset session
         </button>
@@ -53,7 +53,7 @@ export const App = () => {
         <ToastProvider>
           <ConfirmProvider>
           <Suspense fallback={
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400 text-xs">
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400 text-sm">
               Loading...
             </div>
           }>
