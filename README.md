@@ -43,8 +43,6 @@ task-tracker/
 └── README.md                      # Project setup & quickstart guide
 ```
 
-> **Note**: Comprehensive technical design specs, schema diagrams, and submission reports are provided in the companion directory: `task-tracker-docs/` (or `task-tracker-docs.zip`).
-
 ---
 
 ## 🚀 Quick Start Guide
