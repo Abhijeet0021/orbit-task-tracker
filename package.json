@@ -1,0 +1,40 @@
+{
+  "name": "project-task-tracker",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "Full-stack Project and Task Tracking System with strict RBAC, lifecycle rules, immutable audit trails, and dashboard analytics",
+  "scripts": {
+    "dev:server": "(lsof -ti :5001 | xargs kill -9 2>/dev/null || true) && node --watch server/src/index.js",
+    "dev:client": "vite --config client/vite.config.js client",
+    "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
+    "build:client": "vite build --config client/vite.config.js client",
+    "build": "npm run build:client",
+    "seed": "node server/src/seed/seedData.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hello-pangea/dnd": "^17.0.0",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.475.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.29.0",
+    "recharts": "^2.15.1",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.2",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5"
+  }
+}
