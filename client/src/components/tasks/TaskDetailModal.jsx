@@ -447,7 +447,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
                 <TaskTimeline
                   taskId={task.id}
                   timeline={timeline}
-                  onCommentAdded={loadTask}
+                  onRefresh={loadTask}
                 />
               </div>
             </div>
