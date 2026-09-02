@@ -17,6 +17,16 @@ const SORT_FIELDS = {
   status: 'status'
 };
 
+// The audit ledger records the old and new value of every field change. A
+// description can be arbitrarily long, so it is truncated for the timeline
+// rather than omitted - the brief asks for both values, not a placeholder.
+const AUDIT_VALUE_MAX = 240;
+function summarizeForAudit(value) {
+  if (value === null || value === undefined || value === '') return '(empty)';
+  const text = String(value).replace(/\s+/g, ' ').trim();
+  return text.length > AUDIT_VALUE_MAX ? `${text.slice(0, AUDIT_VALUE_MAX - 1)}…` : text;
+}
+
 export class TaskController {
   static async listTasks(req, res, next) {
     try {
@@ -358,15 +368,16 @@ export class TaskController {
         });
       }
 
-      if (description !== undefined && description !== task.description) {
+      if (description !== undefined && typeof description === 'string' && description.trim() !== task.description) {
+        const oldVal = task.description;
         task.description = description.trim();
         await AuditService.logActivity({
           taskId: task._id,
           userId: user.id,
           activityType: 'FIELD_UPDATED',
           fieldName: 'description',
-          oldValue: '...',
-          newValue: '...'
+          oldValue: summarizeForAudit(oldVal),
+          newValue: summarizeForAudit(task.description)
         });
       }
 
