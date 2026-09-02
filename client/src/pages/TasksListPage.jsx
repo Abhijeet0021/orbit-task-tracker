@@ -154,19 +154,22 @@ export const TasksListPage = () => {
     }
   };
 
-  const handleExportCsv = () => {
-    const url = api.getExportCsvUrl({
-      q: search || undefined,
-      project_id: selectedProjectId || undefined,
-      status: selectedStatus || undefined,
-      priority: selectedPriority || undefined,
-      assignee_id: selectedAssigneeId || undefined,
-      overdue: isOverdueOnly || undefined,
-      sort_by: sortBy,
-      sort_order: sortOrder,
-    });
-    toast.info('Downloading CSV export...');
-    window.open(url, '_blank');
+  const handleExportCsv = async () => {
+    toast.info('Preparing CSV export...');
+    try {
+      await api.downloadTasksCsv({
+        q: search || undefined,
+        project_id: selectedProjectId || undefined,
+        status: selectedStatus || undefined,
+        priority: selectedPriority || undefined,
+        assignee_id: selectedAssigneeId || undefined,
+        overdue: isOverdueOnly || undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      });
+    } catch (err) {
+      toast.error(err.message || 'Could not export the current view.');
+    }
   };
 
   const applyPreset = (presetKey) => {
@@ -487,7 +490,8 @@ export const TasksListPage = () => {
 
       {/* Task Table */}
       <div className="rounded-3xl bg-white border border-slate-200 shadow-xs overflow-hidden">
-        <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[46rem] text-left border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
               <th className="py-3.5 px-4 w-10">
@@ -656,6 +660,7 @@ export const TasksListPage = () => {
             )}
           </tbody>
         </table>
+        </div>
 
         <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4 text-xs">
           <span className="text-slate-500 font-medium">

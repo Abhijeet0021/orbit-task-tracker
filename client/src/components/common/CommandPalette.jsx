@@ -77,7 +77,7 @@ export const CommandPalette = ({ isOpen, onClose, onOpenTaskDetail }) => {
     { id: 'nav-mytasks', title: 'My Assigned Tasks', subtitle: 'Work assigned across all projects', icon: CheckSquare, action: () => { navigate('/my-tasks'); onClose(); } },
     { id: 'nav-alerts', title: 'Overdue Alerts', subtitle: 'Urgent overdue task alerts', icon: AlertTriangle, action: () => { navigate('/alerts'); onClose(); } },
     { id: 'nav-activity', title: 'Global Activity Feed', subtitle: 'Real-time immutable audit trail', icon: Activity, action: () => { navigate('/activity'); onClose(); } },
-    { id: 'action-export', title: 'Export Filtered CSV', subtitle: 'Stream current tasks to spreadsheet', icon: Download, action: () => { window.open(api.getExportCsvUrl(), '_blank'); onClose(); } },
+    { id: 'action-export', title: 'Export Filtered CSV', subtitle: 'Stream current tasks to spreadsheet', icon: Download, action: () => { api.downloadTasksCsv().catch(err => console.error('CSV export failed', err)); onClose(); } },
     { id: 'switch-manager', title: 'Switch to Sarah Connor (Manager)', subtitle: 'Full portfolio & member admin access', icon: UserCheck, action: async () => { await switchPersona('manager@acme.com'); onClose(); navigate('/'); } },
     { id: 'switch-m1', title: 'Switch to Alex Rivera (Member)', subtitle: 'Assigned to Alpha, Billing, Legacy', icon: UserCheck, action: async () => { await switchPersona('member1@acme.com'); onClose(); navigate('/'); } },
     { id: 'switch-m2', title: 'Switch to Devon Vance (Member)', subtitle: 'Assigned to Alpha, Mobile', icon: UserCheck, action: async () => { await switchPersona('member2@acme.com'); onClose(); navigate('/'); } },

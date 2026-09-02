@@ -1,9 +1,31 @@
+import mongoose from 'mongoose';
 import { Task } from '../models/Task.js';
 import { Project } from '../models/Project.js';
 import { User } from '../models/User.js';
 import { TaskLifecycleService } from '../services/taskLifecycle.js';
 import { AuditService } from '../services/auditService.js';
 import { hasProjectAccess } from '../middleware/auth.js';
+
+// Whitelisted sort keys. `priority` maps to the derived numeric rank so that
+// "sort by priority" orders by severity rather than alphabetically.
+const SORT_FIELDS = {
+  updated_at: 'updated_at',
+  created_at: 'created_at',
+  due_date: 'due_date',
+  priority: 'priority_rank',
+  title: 'title',
+  status: 'status'
+};
+
+// The audit ledger records the old and new value of every field change. A
+// description can be arbitrarily long, so it is truncated for the timeline
+// rather than omitted - the brief asks for both values, not a placeholder.
+const AUDIT_VALUE_MAX = 240;
+function summarizeForAudit(value) {
+  if (value === null || value === undefined || value === '') return '(empty)';
+  const text = String(value).replace(/\s+/g, ' ').trim();
+  return text.length > AUDIT_VALUE_MAX ? `${text.slice(0, AUDIT_VALUE_MAX - 1)}…` : text;
+}
 
 export class TaskController {
   static async listTasks(req, res, next) {
@@ -65,15 +87,7 @@ export class TaskController {
         ];
       }
 
-      const sortFieldMap = {
-        updated_at: 'updated_at',
-        created_at: 'created_at',
-        due_date: 'due_date',
-        priority: 'priority',
-        title: 'title',
-        status: 'status'
-      };
-      const sortField = sortFieldMap[sort_by] || 'updated_at';
+      const sortField = SORT_FIELDS[sort_by] || 'updated_at';
       const sortDir = sort_order.toLowerCase() === 'asc' ? 1 : -1;
 
       const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -217,7 +231,7 @@ export class TaskController {
   static async createTask(req, res, next) {
     try {
       const user = req.user;
-      const { project_id, title, description, priority = 'MEDIUM', due_date, assignee_ids } = req.body;
+      const { project_id, title, description, priority = 'MEDIUM', due_date, assignee_ids, blocker_ids } = req.body;
 
       if (!project_id || !title) {
         return res.status(400).json({ error: 'Project ID and task title are required.' });
@@ -237,6 +251,11 @@ export class TaskController {
       const lastTask = await Task.findOne({ project: project._id }).sort({ task_number: -1 }).select('task_number').lean();
       const nextNumber = (lastTask ? lastTask.task_number : 0) + 1;
 
+      // Only project members may be assigned, matching the bulk-assign rule.
+      const memberIds = new Set((project.members || []).map(m => m.toString()));
+      const initialAssignees = (Array.isArray(assignee_ids) ? assignee_ids : [])
+        .filter(id => mongoose.Types.ObjectId.isValid(id) && memberIds.has(id.toString()));
+
       const task = await Task.create({
         project: project._id,
         task_number: nextNumber,
@@ -246,7 +265,7 @@ export class TaskController {
         status: 'BACKLOG',
         previous_status: null,
         due_date: due_date || null,
-        assignees: Array.isArray(assignee_ids) ? assignee_ids : []
+        assignees: initialAssignees
       });
 
       await AuditService.logActivity({
@@ -255,6 +274,34 @@ export class TaskController {
         activityType: 'CREATED',
         newValue: `Task created with status Backlog`
       });
+
+      // Blocking dependencies chosen on the create form, validated the same way
+      // as POST /tasks/:id/blockers.
+      if (Array.isArray(blocker_ids) && blocker_ids.length > 0) {
+        for (const blockerId of blocker_ids) {
+          if (!mongoose.Types.ObjectId.isValid(blockerId)) continue;
+          if (blockerId.toString() === task._id.toString()) continue;
+          if (task.blockers.some(b => b.toString() === blockerId.toString())) continue;
+
+          const blockerTask = await Task.findById(blockerId).populate('project', 'key');
+          if (!blockerTask) continue;
+          // A task may only be blocked by other tasks in the same project.
+          if (blockerTask.project._id.toString() !== task.project.toString()) continue;
+          if (await TaskLifecycleService.wouldCreateCycle(task._id, blockerTask._id)) continue;
+
+          task.blockers.push(blockerTask._id);
+          await AuditService.logActivity({
+            taskId: task._id,
+            userId: user.id,
+            activityType: 'BLOCKER_ADDED',
+            newValue: `Blocked by ${blockerTask.project.key}-${blockerTask.task_number}: ${blockerTask.title}`
+          });
+        }
+
+        if (task.blockers.length > 0) {
+          await task.save();
+        }
+      }
 
       return res.status(201).json({
         task: {
@@ -321,15 +368,16 @@ export class TaskController {
         });
       }
 
-      if (description !== undefined && description !== task.description) {
+      if (description !== undefined && typeof description === 'string' && description.trim() !== task.description) {
+        const oldVal = task.description;
         task.description = description.trim();
         await AuditService.logActivity({
           taskId: task._id,
           userId: user.id,
           activityType: 'FIELD_UPDATED',
           fieldName: 'description',
-          oldValue: '...',
-          newValue: '...'
+          oldValue: summarizeForAudit(oldVal),
+          newValue: summarizeForAudit(task.description)
         });
       }
 
@@ -413,6 +461,17 @@ export class TaskController {
       if (!task) return res.status(404).json({ error: 'Task not found.' });
       if (!assignee) return res.status(404).json({ error: 'User not found.' });
 
+      const hasAccess = await hasProjectAccess(task.project, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
+      }
+
+      const project = await Project.findById(task.project).select('members').lean();
+      const isMember = (project?.members || []).some(m => m.toString() === assignee._id.toString());
+      if (!isMember) {
+        return res.status(400).json({ error: `${assignee.name} is not a member of this project.` });
+      }
+
       if (!task.assignees.some(a => a.toString() === userId.toString())) {
         task.assignees.push(assignee._id);
         await task.save();
@@ -443,6 +502,11 @@ export class TaskController {
 
       if (!task) return res.status(404).json({ error: 'Task not found.' });
       if (!assignee) return res.status(404).json({ error: 'User not found.' });
+
+      const hasAccess = await hasProjectAccess(task.project, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
+      }
 
       task.assignees = task.assignees.filter(a => a.toString() !== userId.toString());
       await task.save();
@@ -480,6 +544,19 @@ export class TaskController {
 
       if (!task || !blockerTask) {
         return res.status(404).json({ error: 'Task or blocker task not found.' });
+      }
+
+      const canSeeTask = await hasProjectAccess(task.project._id, req.user);
+      if (!canSeeTask) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
+      }
+
+      // A task may only be blocked by other tasks in the same project. This also
+      // makes the access check above sufficient for the blocking task.
+      if (blockerTask.project._id.toString() !== task.project._id.toString()) {
+        return res.status(400).json({
+          error: `Cannot add dependency: ${blockerTask.project.key}-${blockerTask.task_number} belongs to a different project. A task can only be blocked by tasks in ${task.project.key}.`
+        });
       }
 
       // Check for circular dependency
@@ -520,6 +597,11 @@ export class TaskController {
 
       if (!task) return res.status(404).json({ error: 'Task not found.' });
 
+      const hasAccess = await hasProjectAccess(task.project, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
+      }
+
       task.blockers = task.blockers.filter(b => b.toString() !== blockerId.toString());
       await task.save();
 
@@ -549,6 +631,11 @@ export class TaskController {
       const task = await Task.findById(taskId);
       if (!task) {
         return res.status(404).json({ error: 'Task not found.' });
+      }
+
+      const hasAccess = await hasProjectAccess(task.project, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
       }
 
       await AuditService.logActivity({
@@ -629,7 +716,7 @@ export class TaskController {
       const tasks = await Task.find(filter)
         .populate('project', 'key name')
         .populate('assignees', 'name')
-        .sort({ [sort_by || 'updated_at']: sort_order === 'asc' ? 1 : -1 })
+        .sort({ [SORT_FIELDS[sort_by] || 'updated_at']: sort_order === 'asc' ? 1 : -1 })
         .lean();
 
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');

@@ -22,6 +22,7 @@ export class ProjectController {
       // Query projects using .lean() for fast read performance
       const projects = await Project.find(filter)
         .populate('created_by', 'name email')
+        .populate('owner', 'name email role avatar_color')
         .populate('members', 'name email role avatar_color')
         .sort({ name: 1 })
         .lean();
@@ -47,6 +48,14 @@ export class ProjectController {
           is_archived: p.is_archived,
           created_at: p.created_at ? p.created_at.toISOString().replace('T', ' ').substring(0, 19) : '',
           updated_at: p.updated_at ? p.updated_at.toISOString().replace('T', ' ').substring(0, 19) : '',
+          owner_id: p.owner ? p.owner._id.toString() : null,
+          owner: p.owner ? {
+            id: p.owner._id.toString(),
+            name: p.owner.name,
+            email: p.owner.email,
+            role: p.owner.role,
+            avatar_color: p.owner.avatar_color
+          } : null,
           members_count: p.members ? p.members.length : 0,
           tasks_count: tasksCount,
           members: (p.members || []).map(m => ({
@@ -79,6 +88,7 @@ export class ProjectController {
       const [project, tasksCount] = await Promise.all([
         Project.findById(projectId)
           .populate('created_by', 'name email')
+          .populate('owner', 'name email role avatar_color')
           .populate('members', 'name email role avatar_color')
           .lean(),
         Task.countDocuments({ project: projectId })
@@ -97,6 +107,14 @@ export class ProjectController {
           is_archived: project.is_archived,
           created_at: project.created_at ? project.created_at.toISOString().replace('T', ' ').substring(0, 19) : '',
           updated_at: project.updated_at ? project.updated_at.toISOString().replace('T', ' ').substring(0, 19) : '',
+          owner_id: project.owner ? project.owner._id.toString() : null,
+          owner: project.owner ? {
+            id: project.owner._id.toString(),
+            name: project.owner.name,
+            email: project.owner.email,
+            role: project.owner.role,
+            avatar_color: project.owner.avatar_color
+          } : null,
           tasks_count: tasksCount,
           members: (project.members || []).map(m => ({
             id: m._id.toString(),
@@ -115,7 +133,7 @@ export class ProjectController {
   static async createProject(req, res, next) {
     try {
       const user = req.user;
-      const { key, name, description } = req.body;
+      const { key, name, description, owner_id } = req.body;
 
       if (!key || !name) {
         return res.status(400).json({ error: 'Project key and name are required.' });
@@ -131,12 +149,24 @@ export class ProjectController {
         return res.status(409).json({ error: `Project key '${normalizedKey}' is already taken.` });
       }
 
+      // The owner defaults to the creating manager when none is named. An owner
+      // is always a member of their own project.
+      let ownerId = user.id;
+      if (owner_id) {
+        const owner = await User.findById(owner_id).select('_id').lean();
+        if (!owner) {
+          return res.status(404).json({ error: 'The selected project owner does not exist.' });
+        }
+        ownerId = owner._id.toString();
+      }
+
       const project = await Project.create({
         key: normalizedKey,
         name: name.trim(),
         description: description?.trim() || '',
         created_by: user.id,
-        members: [user.id]
+        owner: ownerId,
+        members: Array.from(new Set([user.id, ownerId]))
       });
 
       return res.status(201).json({
@@ -145,6 +175,7 @@ export class ProjectController {
           key: project.key,
           name: project.name,
           description: project.description,
+          owner_id: project.owner.toString(),
           is_archived: project.is_archived
         }
       });
@@ -156,7 +187,7 @@ export class ProjectController {
   static async updateProject(req, res, next) {
     try {
       const projectId = req.params.id;
-      const { name, description } = req.body;
+      const { name, description, owner_id } = req.body;
 
       if (!name) {
         return res.status(400).json({ error: 'Project name is required.' });
@@ -169,8 +200,20 @@ export class ProjectController {
 
       project.name = name.trim();
       if (description !== undefined) {
-        project.description = description.trim();
+        project.description = String(description).trim();
       }
+
+      if (owner_id !== undefined) {
+        const owner = await User.findById(owner_id).select('_id').lean();
+        if (!owner) {
+          return res.status(404).json({ error: 'The selected project owner does not exist.' });
+        }
+        project.owner = owner._id;
+        if (!project.members.some(m => m.toString() === owner._id.toString())) {
+          project.members.push(owner._id);
+        }
+      }
+
       await project.save();
 
       return res.json({
@@ -179,6 +222,7 @@ export class ProjectController {
           key: project.key,
           name: project.name,
           description: project.description,
+          owner_id: project.owner ? project.owner.toString() : null,
           is_archived: project.is_archived
         }
       });
@@ -260,6 +304,12 @@ export class ProjectController {
 
       if (!project) return res.status(404).json({ error: 'Project not found.' });
       if (!user) return res.status(404).json({ error: 'User not found.' });
+
+      if (project.owner && project.owner.toString() === user._id.toString()) {
+        return res.status(400).json({
+          error: `${user.name} owns this project. Assign a different owner before removing them.`
+        });
+      }
 
       // 1. Unassign user from all tasks in this project
       const assignedTasks = await Task.find({ project: project._id, assignees: user._id });

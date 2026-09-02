@@ -1,24 +1,13 @@
+// The client owns the real Tailwind configuration; this file exists so a build
+// run from the repository root resolves the same theme. Keep it a re-export so
+// the two cannot drift apart.
+import clientConfig from './client/tailwind.config.js';
+
 /** @type {import('tailwindcss').Config} */
 export default {
+  ...clientConfig,
   content: [
     "./client/index.html",
     "./client/src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
-  theme: {
-    extend: {
-      colors: {
-        brand: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-        }
-      }
-    },
-  },
-  plugins: [],
-}
+};

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useAlerts } from '../context/AlertContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal.jsx';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge.jsx';
 import { AlertTriangle, CheckCircle2, Calendar, EyeOff, Info } from 'lucide-react';
 
 export const AlertsPage = () => {
   const { alerts, alertCount, loading, dismissAlert, refreshAlerts } = useAlerts();
+  const toast = useToast();
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [dismissingId, setDismissingId] = useState(null);
@@ -16,7 +18,7 @@ export const AlertsPage = () => {
     try {
       await dismissAlert(taskId);
     } catch (err) {
-      alert(err.message || 'Failed to dismiss alert.');
+      toast.error(err.message || 'Could not dismiss the alert.');
     } finally {
       setDismissingId(null);
     }

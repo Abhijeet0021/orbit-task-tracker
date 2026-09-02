@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
-import { initDatabase } from './config/database.js';
+import { initDatabase, isUsingInMemoryFallback } from './config/database.js';
 import { router } from './routes/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -86,6 +86,12 @@ async function startServer() {
     // Wait for MongoDB before accepting requests
     await initDatabase();
 
+    // A throwaway database starts empty, which would leave nobody to log in as.
+    if (isUsingInMemoryFallback()) {
+      const { runSeed } = await import('./seed/seedData.js');
+      await runSeed();
+    }
+
     const server = app.listen(PORT, () => {
       console.log(`🚀 Task Tracker API Server running on port ${PORT}`);
     });
@@ -110,7 +116,10 @@ async function startServer() {
 }
 
 if (process.env.NODE_ENV !== 'test') {
-  startServer();
+  // Without this, a startup failure surfaces as an unhandled promise rejection
+  // and the process lingers with nothing listening - so the dev proxy answers
+  // every /api request with an opaque 500.
+  startServer().catch(() => process.exit(1));
 }
 
 export { app, startServer };

@@ -75,7 +75,7 @@ export const LoginPage = () => {
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/30">
                 <Layers className="h-5 w-5" />
               </div>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900">Orbit (JavaScript)</h1>
+              <h1 className="text-2xl font-black tracking-tight text-slate-900">Orbit (Task Tracker)</h1>
             </div>
 
             <h2 className="text-lg font-bold text-slate-900 mb-1">Instant Demo Personas</h2>

@@ -1,28 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar.jsx';
 import { Sidebar } from './Sidebar.jsx';
 import { Modal } from '../common/Modal.jsx';
+import { CommandPalette } from '../common/CommandPalette.jsx';
+import { TaskDetailModal } from '../tasks/TaskDetailModal.jsx';
 import { api } from '../../api/client.js';
 
 export const AppLayout = () => {
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [paletteTaskId, setPaletteTaskId] = useState(null);
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [ownerId, setOwnerId] = useState('');
+  const [users, setUsers] = useState([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isCreateProjectOpen || users.length > 0) return;
+    api.getUsers()
+      .then(res => setUsers(res.users || []))
+      .catch(err => console.error('Failed to load users for owner picker', err));
+  }, [isCreateProjectOpen, users.length]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsPaletteOpen(open => !open);
+      }
+      if (e.key === 'Escape') {
+        setIsSidebarOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
     setError('');
     setSubmitting(true);
     try {
-      await api.createProject({ key, name, description });
+      await api.createProject({ key, name, description, owner_id: ownerId || undefined });
       setIsCreateProjectOpen(false);
       setKey('');
       setName('');
       setDescription('');
+      setOwnerId('');
       window.location.reload();
     } catch (err) {
       setError(err.message || 'Failed to create project.');
@@ -33,13 +62,51 @@ export const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <Navbar />
+      <Navbar onToggleSidebar={() => setIsSidebarOpen(true)} />
       <div className="flex flex-1">
-        <Sidebar onOpenCreateProject={() => setIsCreateProjectOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 max-w-7xl mx-auto w-full">
+        {/* Below lg the sidebar would eat most of the screen, so it becomes a
+            dismissible overlay instead of a permanent column. */}
+        <div className="hidden lg:flex">
+          <Sidebar onOpenCreateProject={() => setIsCreateProjectOpen(true)} />
+        </div>
+
+        {isSidebarOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <div
+              className="absolute inset-0 bg-slate-900/50 animate-in fade-in duration-150"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            <div className="relative z-50 h-full w-64 shadow-xl animate-in fade-in duration-150">
+              <Sidebar
+                onOpenCreateProject={() => {
+                  setIsSidebarOpen(false);
+                  setIsCreateProjectOpen(true);
+                }}
+                onNavigate={() => setIsSidebarOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        <main className="mx-auto w-full max-w-7xl flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <Outlet />
         </main>
       </div>
+
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        onOpenTaskDetail={(taskId) => {
+          setIsPaletteOpen(false);
+          setPaletteTaskId(taskId);
+        }}
+      />
+
+      <TaskDetailModal
+        taskId={paletteTaskId}
+        isOpen={Boolean(paletteTaskId)}
+        onClose={() => setPaletteTaskId(null)}
+      />
 
       <Modal
         isOpen={isCreateProjectOpen}
@@ -81,6 +148,23 @@ export const AppLayout = () => {
               placeholder="e.g. Cloud Infrastructure Platform"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Owner
+            </label>
+            <select
+              value={ownerId}
+              onChange={e => setOwnerId(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
+            >
+              <option value="">Me (project creator)</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-500 mt-1">The owner is accountable for the project and is always a member of it.</p>
           </div>
 
           <div>

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
+import { useConfirm } from '../components/common/ConfirmDialog.jsx';
 import { 
   FolderKanban, 
   Users, 
@@ -13,6 +15,8 @@ import {
 
 export const ProjectsPage = () => {
   const { user } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [projects, setProjects] = useState([]);
   const [includeArchived, setIncludeArchived] = useState(false);
   const [search, setSearch] = useState('');
@@ -36,12 +40,18 @@ export const ProjectsPage = () => {
 
   const handleArchive = async (id, e) => {
     e.preventDefault();
-    if (!window.confirm('Are you sure you want to archive this project? It will be hidden from default views.')) return;
+    const ok = await confirm({
+      title: 'Archive this project?',
+      body: 'It will be hidden from the default views. Its tasks and history are kept, and you can restore it at any time.',
+      confirmLabel: 'Archive project',
+    });
+    if (!ok) return;
     try {
       await api.archiveProject(id);
+      toast.success('Project archived');
       loadProjects();
     } catch (err) {
-      alert(err.message || 'Failed to archive project.');
+      toast.error(err.message || 'Could not archive the project.');
     }
   };
 
@@ -49,9 +59,10 @@ export const ProjectsPage = () => {
     e.preventDefault();
     try {
       await api.restoreProject(id);
+      toast.success('Project restored');
       loadProjects();
     } catch (err) {
-      alert(err.message || 'Failed to restore project.');
+      toast.error(err.message || 'Could not restore the project.');
     }
   };
 
