@@ -22,7 +22,7 @@ import { KanbanBoard } from '../components/kanban/KanbanBoard.jsx';
 
 export const ProjectDetailPage = () => {
   const { id } = useParams();
-  const projectId = parseInt(id || '', 10);
+  const projectId = id || '';
   const { user } = useAuth();
 
   const [project, setProject] = useState(null);
@@ -50,7 +50,7 @@ export const ProjectDetailPage = () => {
   const [memberToAdd, setMemberToAdd] = useState('');
 
   const loadData = async () => {
-    if (isNaN(projectId)) return;
+    if (!projectId) return;
     try {
       setLoading(true);
       const [projRes, tasksRes, usersRes] = await Promise.all([
@@ -105,7 +105,7 @@ export const ProjectDetailPage = () => {
     e.preventDefault();
     if (!memberToAdd) return;
     try {
-      await api.addProjectMember(projectId, parseInt(memberToAdd, 10));
+      await api.addProjectMember(projectId, memberToAdd);
       setIsAddMemberOpen(false);
       setMemberToAdd('');
       loadData();

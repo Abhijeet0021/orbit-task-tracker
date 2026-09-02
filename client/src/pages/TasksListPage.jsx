@@ -131,7 +131,7 @@ export const TasksListPage = () => {
     try {
       let payload = {};
       if (bulkAction === 'UPDATE_STATUS') payload = { status: bulkStatus };
-      if (bulkAction === 'ASSIGN_USER') payload = { userId: parseInt(bulkUserId, 10) };
+      if (bulkAction === 'ASSIGN_USER') payload = { userId: bulkUserId };
       if (bulkAction === 'SET_DUE_DATE') payload = { due_date: bulkDueDate || null };
       if (bulkAction === 'SET_PRIORITY') payload = { priority: bulkPriority };
 

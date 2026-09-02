@@ -157,7 +157,7 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
 
   const handleAddBlocker = async () => {
     if (!task || !selectedBlockerId) return;
-    const bId = parseInt(selectedBlockerId, 10);
+    const bId = selectedBlockerId;
     try {
       await api.addTaskBlocker(task.id, bId);
       setSelectedBlockerId('');

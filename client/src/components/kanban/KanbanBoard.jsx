@@ -23,7 +23,7 @@ export const KanbanBoard = ({ tasks, onTaskClick, onRefresh }) => {
     if (!destination) return;
     if (destination.droppableId === source.droppableId) return;
 
-    const taskId = parseInt(draggableId, 10);
+    const taskId = draggableId;
     const targetStatus = destination.droppableId;
 
     setErrorToast(null);
