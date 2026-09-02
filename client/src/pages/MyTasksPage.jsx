@@ -44,7 +44,8 @@ export const MyTasksPage = () => {
       </div>
 
       <div className="rounded-3xl bg-white border border-slate-200 shadow-xs overflow-hidden">
-        <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[46rem] text-left border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
               <th className="py-3.5 px-4">Task</th>
@@ -116,6 +117,7 @@ export const MyTasksPage = () => {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <TaskDetailModal

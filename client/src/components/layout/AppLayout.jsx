@@ -10,6 +10,7 @@ import { api } from '../../api/client.js';
 export const AppLayout = () => {
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [paletteTaskId, setPaletteTaskId] = useState(null);
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
@@ -31,6 +32,9 @@ export const AppLayout = () => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsPaletteOpen(open => !open);
+      }
+      if (e.key === 'Escape') {
+        setIsSidebarOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -58,10 +62,33 @@ export const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <Navbar />
+      <Navbar onToggleSidebar={() => setIsSidebarOpen(true)} />
       <div className="flex flex-1">
-        <Sidebar onOpenCreateProject={() => setIsCreateProjectOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 max-w-7xl mx-auto w-full">
+        {/* Below lg the sidebar would eat most of the screen, so it becomes a
+            dismissible overlay instead of a permanent column. */}
+        <div className="hidden lg:flex">
+          <Sidebar onOpenCreateProject={() => setIsCreateProjectOpen(true)} />
+        </div>
+
+        {isSidebarOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <div
+              className="absolute inset-0 bg-slate-900/50 animate-in fade-in duration-150"
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            <div className="relative z-50 h-full w-64 shadow-xl animate-in fade-in duration-150">
+              <Sidebar
+                onOpenCreateProject={() => {
+                  setIsSidebarOpen(false);
+                  setIsCreateProjectOpen(true);
+                }}
+                onNavigate={() => setIsSidebarOpen(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        <main className="mx-auto w-full max-w-7xl flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           <Outlet />
         </main>
       </div>

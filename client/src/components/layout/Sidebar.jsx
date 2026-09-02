@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useAlerts } from '../../context/AlertContext.jsx';
 import { api } from '../../api/client.js';
 
-export const Sidebar = ({ onOpenCreateProject }) => {
+export const Sidebar = ({ onOpenCreateProject, onNavigate }) => {
   const { user } = useAuth();
   const { alertCount } = useAlerts();
   const [projects, setProjects] = useState([]);
@@ -40,13 +40,14 @@ export const Sidebar = ({ onOpenCreateProject }) => {
   ];
 
   return (
-    <aside className="w-64 border-r border-slate-200 bg-white flex flex-col shrink-0 min-h-[calc(100vh-4rem)]">
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:min-h-[calc(100vh-4rem)]">
       <div className="p-4 space-y-1">
         {navItems.map(item => (
           <NavLink
             key={item.path}
             to={item.path}
             end={item.path === '/'}
+            onClick={onNavigate}
             className={({ isActive }) =>
               `flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition ${
                 isActive
@@ -89,6 +90,7 @@ export const Sidebar = ({ onOpenCreateProject }) => {
             <NavLink
               key={p.id}
               to={`/projects/${p.id}`}
+              onClick={onNavigate}
               className={({ isActive }) =>
                 `flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition ${
                   isActive
