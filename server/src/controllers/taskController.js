@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Task } from '../models/Task.js';
 import { Project } from '../models/Project.js';
 import { User } from '../models/User.js';
@@ -217,7 +218,7 @@ export class TaskController {
   static async createTask(req, res, next) {
     try {
       const user = req.user;
-      const { project_id, title, description, priority = 'MEDIUM', due_date, assignee_ids } = req.body;
+      const { project_id, title, description, priority = 'MEDIUM', due_date, assignee_ids, blocker_ids } = req.body;
 
       if (!project_id || !title) {
         return res.status(400).json({ error: 'Project ID and task title are required.' });
@@ -237,6 +238,11 @@ export class TaskController {
       const lastTask = await Task.findOne({ project: project._id }).sort({ task_number: -1 }).select('task_number').lean();
       const nextNumber = (lastTask ? lastTask.task_number : 0) + 1;
 
+      // Only project members may be assigned, matching the bulk-assign rule.
+      const memberIds = new Set((project.members || []).map(m => m.toString()));
+      const initialAssignees = (Array.isArray(assignee_ids) ? assignee_ids : [])
+        .filter(id => mongoose.Types.ObjectId.isValid(id) && memberIds.has(id.toString()));
+
       const task = await Task.create({
         project: project._id,
         task_number: nextNumber,
@@ -246,7 +252,7 @@ export class TaskController {
         status: 'BACKLOG',
         previous_status: null,
         due_date: due_date || null,
-        assignees: Array.isArray(assignee_ids) ? assignee_ids : []
+        assignees: initialAssignees
       });
 
       await AuditService.logActivity({
@@ -255,6 +261,33 @@ export class TaskController {
         activityType: 'CREATED',
         newValue: `Task created with status Backlog`
       });
+
+      // Blocking dependencies chosen on the create form, validated the same way
+      // as POST /tasks/:id/blockers.
+      if (Array.isArray(blocker_ids) && blocker_ids.length > 0) {
+        for (const blockerId of blocker_ids) {
+          if (!mongoose.Types.ObjectId.isValid(blockerId)) continue;
+          if (blockerId.toString() === task._id.toString()) continue;
+          if (task.blockers.some(b => b.toString() === blockerId.toString())) continue;
+
+          const blockerTask = await Task.findById(blockerId).populate('project', 'key');
+          if (!blockerTask) continue;
+          if (!(await hasProjectAccess(blockerTask.project._id, user))) continue;
+          if (await TaskLifecycleService.wouldCreateCycle(task._id, blockerTask._id)) continue;
+
+          task.blockers.push(blockerTask._id);
+          await AuditService.logActivity({
+            taskId: task._id,
+            userId: user.id,
+            activityType: 'BLOCKER_ADDED',
+            newValue: `Blocked by ${blockerTask.project.key}-${blockerTask.task_number}: ${blockerTask.title}`
+          });
+        }
+
+        if (task.blockers.length > 0) {
+          await task.save();
+        }
+      }
 
       return res.status(201).json({
         task: {
