@@ -268,4 +268,9 @@ export class BulkController {
       results
     });
   }
+
+  static async exportCsv(req, res) {
+    const { TaskController } = await import('./taskController.js');
+    return TaskController.exportCsv(req, res);
+  }
 }

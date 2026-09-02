@@ -26,8 +26,10 @@ router.delete('/projects/:id/members/:userId', authenticate, requireManager, Pro
 
 // Task routes
 router.get('/tasks', authenticate, TaskController.listTasks);
-router.get('/tasks/export.csv', authenticate, BulkController.exportCsv);
-router.get('/tasks/export-csv', authenticate, BulkController.exportCsv);
+router.get('/tasks/export.csv', authenticate, TaskController.exportCsv);
+router.get('/tasks/export-csv', authenticate, TaskController.exportCsv);
+router.get('/activities', authenticate, TaskController.getActivityFeed);
+router.get('/activity', authenticate, TaskController.getActivityFeed);
 router.post('/tasks/bulk', authenticate, BulkController.executeBulk);
 router.post('/tasks/bulk-update', authenticate, BulkController.executeBulk);
 router.post('/tasks', authenticate, TaskController.createTask);
