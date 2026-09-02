@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
+import { useTaskModal } from '../hooks/useTaskModal.js';
 import { 
   Activity, 
   Filter, 
@@ -27,8 +28,7 @@ export const ActivityFeedPage = () => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedType, setSelectedType] = useState('');
 
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const { taskId: selectedTaskId, isTaskOpen, openTask, closeTask } = useTaskModal();
 
   const loadFilters = async () => {
     try {
@@ -186,8 +186,7 @@ export const ActivityFeedPage = () => {
 
                 <div 
                   onClick={() => {
-                    setSelectedTaskId(item.task_id);
-                    setIsTaskModalOpen(true);
+                    openTask(item.task_id);
                   }}
                   className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/80 hover:bg-blue-50/40 hover:border-blue-300 transition cursor-pointer"
                 >
@@ -284,11 +283,8 @@ export const ActivityFeedPage = () => {
 
       <TaskDetailModal
         taskId={selectedTaskId}
-        isOpen={isTaskModalOpen}
-        onClose={() => {
-          setIsTaskModalOpen(false);
-          setSelectedTaskId(null);
-        }}
+        isOpen={isTaskOpen}
+        onClose={closeTask}
         onTaskUpdated={loadFeed}
       />
     </div>

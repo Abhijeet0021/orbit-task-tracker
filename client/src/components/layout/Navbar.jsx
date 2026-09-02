@@ -44,7 +44,7 @@ export const Navbar = ({ onToggleSidebar }) => {
           </span>
         </Link>
         <span className="hidden md:inline-block text-sm font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 border border-slate-200">
-          Portfolio Tracker (JS)
+          Portfolio Tracker
         </span>
       </div>
 

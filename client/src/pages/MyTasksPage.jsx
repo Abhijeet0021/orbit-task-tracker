@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTaskModal } from '../hooks/useTaskModal.js';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge.jsx';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal.jsx';
 import { Calendar, ShieldAlert } from 'lucide-react';
@@ -9,8 +10,7 @@ export const MyTasksPage = () => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const { taskId: selectedTaskId, isTaskOpen, openTask, closeTask } = useTaskModal();
 
   const loadMyTasks = async () => {
     if (!user) return;
@@ -61,8 +61,7 @@ export const MyTasksPage = () => {
               <tr
                 key={task.id}
                 onClick={() => {
-                  setSelectedTaskId(task.id);
-                  setIsTaskModalOpen(true);
+                  openTask(task.id);
                 }}
                 className="hover:bg-blue-50/40 cursor-pointer transition"
               >
@@ -122,11 +121,8 @@ export const MyTasksPage = () => {
 
       <TaskDetailModal
         taskId={selectedTaskId}
-        isOpen={isTaskModalOpen}
-        onClose={() => {
-          setIsTaskModalOpen(false);
-          setSelectedTaskId(null);
-        }}
+        isOpen={isTaskOpen}
+        onClose={closeTask}
         onTaskUpdated={loadMyTasks}
       />
     </div>

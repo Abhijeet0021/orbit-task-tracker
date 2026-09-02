@@ -111,7 +111,7 @@ export const LoginPage = () => {
           </div>
 
           <div className="pt-4 mt-6 border-t border-slate-200/80 text-xs text-slate-400">
-            Password for demo accounts is <code className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono font-bold">Manager123!</code> / <code className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono font-bold">Member123!</code>
+            Password for every demo account is <code className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono font-bold">password123</code>
           </div>
         </div>
 

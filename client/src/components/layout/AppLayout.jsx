@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { Navbar } from './Navbar.jsx';
 import { Sidebar } from './Sidebar.jsx';
 import { Modal } from '../common/Modal.jsx';
 import { CommandPalette } from '../common/CommandPalette.jsx';
-import { TaskDetailModal } from '../tasks/TaskDetailModal.jsx';
 import { api } from '../../api/client.js';
 
 export const AppLayout = () => {
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [paletteTaskId, setPaletteTaskId] = useState(null);
+  const navigate = useNavigate();
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -98,14 +97,9 @@ export const AppLayout = () => {
         onClose={() => setIsPaletteOpen(false)}
         onOpenTaskDetail={(taskId) => {
           setIsPaletteOpen(false);
-          setPaletteTaskId(taskId);
+          // The task list owns the modal; ?task= is what opens it there.
+          navigate(`/tasks?task=${encodeURIComponent(taskId)}`);
         }}
-      />
-
-      <TaskDetailModal
-        taskId={paletteTaskId}
-        isOpen={Boolean(paletteTaskId)}
-        onClose={() => setPaletteTaskId(null)}
       />
 
       <Modal

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAlerts } from '../context/AlertContext.jsx';
+import { useTaskModal } from '../hooks/useTaskModal.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal.jsx';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge.jsx';
@@ -8,8 +9,7 @@ import { AlertTriangle, CheckCircle2, Calendar, EyeOff, Info } from 'lucide-reac
 export const AlertsPage = () => {
   const { alerts, alertCount, loading, dismissAlert, refreshAlerts } = useAlerts();
   const toast = useToast();
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const { taskId: selectedTaskId, isTaskOpen, openTask, closeTask } = useTaskModal();
   const [dismissingId, setDismissingId] = useState(null);
 
   const handleDismiss = async (taskId, e) => {
@@ -63,8 +63,7 @@ export const AlertsPage = () => {
             <div
               key={alert.task_id}
               onClick={() => {
-                setSelectedTaskId(alert.task_id);
-                setIsTaskModalOpen(true);
+                openTask(alert.task_id);
               }}
               className="p-5 rounded-2xl bg-white border border-rose-200 shadow-xs hover:shadow-md hover:border-rose-300 transition cursor-pointer flex flex-wrap items-center justify-between gap-4"
             >
@@ -111,11 +110,8 @@ export const AlertsPage = () => {
 
       <TaskDetailModal
         taskId={selectedTaskId}
-        isOpen={isTaskModalOpen}
-        onClose={() => {
-          setIsTaskModalOpen(false);
-          setSelectedTaskId(null);
-        }}
+        isOpen={isTaskOpen}
+        onClose={closeTask}
         onTaskUpdated={refreshAlerts}
       />
     </div>

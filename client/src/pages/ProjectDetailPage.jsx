@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTaskModal } from '../hooks/useTaskModal.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { useConfirm } from '../components/common/ConfirmDialog.jsx';
 import { 
@@ -35,8 +36,7 @@ export const ProjectDetailPage = () => {
   const [viewMode, setViewMode] = useState('list');
   const [loading, setLoading] = useState(true);
 
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const { taskId: selectedTaskId, isTaskOpen, openTask, closeTask } = useTaskModal();
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
@@ -325,8 +325,7 @@ export const ProjectDetailPage = () => {
         <KanbanBoard
           tasks={tasks}
           onTaskClick={(taskId) => {
-            setSelectedTaskId(taskId);
-            setIsTaskModalOpen(true);
+            openTask(taskId);
           }}
           onRefresh={loadData}
         />
@@ -349,8 +348,7 @@ export const ProjectDetailPage = () => {
                 <tr
                   key={task.id}
                   onClick={() => {
-                    setSelectedTaskId(task.id);
-                    setIsTaskModalOpen(true);
+                    openTask(task.id);
                   }}
                   className="hover:bg-blue-50/40 cursor-pointer transition"
                 >
@@ -424,11 +422,8 @@ export const ProjectDetailPage = () => {
 
       <TaskDetailModal
         taskId={selectedTaskId}
-        isOpen={isTaskModalOpen}
-        onClose={() => {
-          setIsTaskModalOpen(false);
-          setSelectedTaskId(null);
-        }}
+        isOpen={isTaskOpen}
+        onClose={closeTask}
         onTaskUpdated={loadData}
       />
 

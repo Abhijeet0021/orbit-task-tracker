@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTaskModal } from '../hooks/useTaskModal.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { StatusBadge, PriorityBadge } from '../components/common/Badge.jsx';
 import { TaskDetailModal } from '../components/tasks/TaskDetailModal.jsx';
@@ -29,6 +30,7 @@ export const TasksListPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -51,9 +53,18 @@ export const TasksListPage = () => {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isExecutingBulk, setIsExecutingBulk] = useState(false);
 
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const { taskId: selectedTaskId, isTaskOpen, openTask, closeTask } = useTaskModal();
   const [activePreset, setActivePreset] = useState('ALL');
+
+  // Typing sent one request per keystroke. Debounce the term that actually
+  // drives the query, and reset to the first page when it changes.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(current => (current === searchInput ? current : searchInput));
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const loadFilterData = async () => {
     try {
@@ -68,7 +79,10 @@ export const TasksListPage = () => {
     }
   };
 
+  const requestSeq = useRef(0);
+
   const loadTasks = async () => {
+    const seq = ++requestSeq.current;
     try {
       setLoading(true);
       const res = await api.getTasks({
@@ -83,13 +97,16 @@ export const TasksListPage = () => {
         page,
         limit: 15
       });
+      // A slower earlier request must not overwrite a newer result.
+      if (seq !== requestSeq.current) return;
       setTasks(res.tasks || []);
       setPagination(res.pagination || { total: 0, page: 1, limit: 15, totalPages: 1 });
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       console.error('Failed to load tasks', err);
-      toast.error('Failed to retrieve task data from server');
+      toast.error(err.message || 'Could not load tasks from the server.');
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   };
 
@@ -175,6 +192,7 @@ export const TasksListPage = () => {
   const applyPreset = (presetKey) => {
     setActivePreset(presetKey);
     setPage(1);
+    setSearchInput('');
     setSearch('');
     setSelectedProjectId('');
 
@@ -274,11 +292,8 @@ export const TasksListPage = () => {
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
             <input
               type="text"
-              value={search}
-              onChange={e => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
               placeholder="Search title, description, or code..."
               className="w-full pl-10 pr-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-hidden"
             />
@@ -547,8 +562,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <div className="flex items-center gap-2.5">
@@ -568,8 +582,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <span className="font-medium text-slate-600">{task.project_name}</span>
@@ -577,8 +590,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <StatusBadge status={task.status} />
@@ -586,8 +598,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <PriorityBadge priority={task.priority} />
@@ -595,8 +606,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     <div className="flex -space-x-1.5 overflow-hidden">
@@ -618,8 +628,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     {task.due_date ? (
@@ -634,8 +643,7 @@ export const TasksListPage = () => {
                   <td
                     className="py-3.5 px-4"
                     onClick={() => {
-                      setSelectedTaskId(task.id);
-                      setIsTaskModalOpen(true);
+                      openTask(task.id);
                     }}
                   >
                     {task.blockers.length > 0 ? (
@@ -694,11 +702,8 @@ export const TasksListPage = () => {
 
       <TaskDetailModal
         taskId={selectedTaskId}
-        isOpen={isTaskModalOpen}
-        onClose={() => {
-          setIsTaskModalOpen(false);
-          setSelectedTaskId(null);
-        }}
+        isOpen={isTaskOpen}
+        onClose={closeTask}
         onTaskUpdated={loadTasks}
       />
 
