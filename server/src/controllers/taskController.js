@@ -272,7 +272,8 @@ export class TaskController {
 
           const blockerTask = await Task.findById(blockerId).populate('project', 'key');
           if (!blockerTask) continue;
-          if (!(await hasProjectAccess(blockerTask.project._id, user))) continue;
+          // A task may only be blocked by other tasks in the same project.
+          if (blockerTask.project._id.toString() !== task.project.toString()) continue;
           if (await TaskLifecycleService.wouldCreateCycle(task._id, blockerTask._id)) continue;
 
           task.blockers.push(blockerTask._id);
@@ -531,12 +532,17 @@ export class TaskController {
         return res.status(404).json({ error: 'Task or blocker task not found.' });
       }
 
-      const [canSeeTask, canSeeBlocker] = await Promise.all([
-        hasProjectAccess(task.project._id, req.user),
-        hasProjectAccess(blockerTask.project._id, req.user)
-      ]);
-      if (!canSeeTask || !canSeeBlocker) {
+      const canSeeTask = await hasProjectAccess(task.project._id, req.user);
+      if (!canSeeTask) {
         return res.status(403).json({ error: 'Forbidden: You do not have access to this task.' });
+      }
+
+      // A task may only be blocked by other tasks in the same project. This also
+      // makes the access check above sufficient for the blocking task.
+      if (blockerTask.project._id.toString() !== task.project._id.toString()) {
+        return res.status(400).json({
+          error: `Cannot add dependency: ${blockerTask.project.key}-${blockerTask.task_number} belongs to a different project. A task can only be blocked by tasks in ${task.project.key}.`
+        });
       }
 
       // Check for circular dependency
