@@ -1,17 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar.jsx';
 import { Sidebar } from './Sidebar.jsx';
 import { Modal } from '../common/Modal.jsx';
+import { CommandPalette } from '../common/CommandPalette.jsx';
+import { TaskDetailModal } from '../tasks/TaskDetailModal.jsx';
 import { api } from '../../api/client.js';
 
 export const AppLayout = () => {
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [paletteTaskId, setPaletteTaskId] = useState(null);
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsPaletteOpen(open => !open);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -40,6 +55,21 @@ export const AppLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        onOpenTaskDetail={(taskId) => {
+          setIsPaletteOpen(false);
+          setPaletteTaskId(taskId);
+        }}
+      />
+
+      <TaskDetailModal
+        taskId={paletteTaskId}
+        isOpen={Boolean(paletteTaskId)}
+        onClose={() => setPaletteTaskId(null)}
+      />
 
       <Modal
         isOpen={isCreateProjectOpen}

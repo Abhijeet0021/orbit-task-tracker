@@ -12,6 +12,7 @@ const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage.jsx').the
 const TasksListPage = lazy(() => import('./pages/TasksListPage.jsx').then(m => ({ default: m.TasksListPage })));
 const MyTasksPage = lazy(() => import('./pages/MyTasksPage.jsx').then(m => ({ default: m.MyTasksPage })));
 const AlertsPage = lazy(() => import('./pages/AlertsPage.jsx').then(m => ({ default: m.AlertsPage })));
+const ActivityFeedPage = lazy(() => import('./pages/ActivityFeedPage.jsx').then(m => ({ default: m.ActivityFeedPage })));
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -70,6 +71,7 @@ export const App = () => {
                 <Route path="tasks" element={<TasksListPage />} />
                 <Route path="my-tasks" element={<MyTasksPage />} />
                 <Route path="alerts" element={<AlertsPage />} />
+                <Route path="activity" element={<ActivityFeedPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

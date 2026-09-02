@@ -6,6 +6,7 @@ import {
   ListTodo, 
   CheckSquare, 
   AlertTriangle,
+  Activity,
   Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -35,6 +36,7 @@ export const Sidebar = ({ onOpenCreateProject }) => {
     { label: 'All Tasks', path: '/tasks', icon: ListTodo },
     { label: 'My Tasks', path: '/my-tasks', icon: CheckSquare },
     { label: 'Overdue Alerts', path: '/alerts', icon: AlertTriangle, badge: alertCount },
+    { label: 'Activity Feed', path: '/activity', icon: Activity },
   ];
 
   return (
