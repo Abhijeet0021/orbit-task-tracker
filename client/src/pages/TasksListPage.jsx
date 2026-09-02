@@ -154,19 +154,22 @@ export const TasksListPage = () => {
     }
   };
 
-  const handleExportCsv = () => {
-    const url = api.getExportCsvUrl({
-      q: search || undefined,
-      project_id: selectedProjectId || undefined,
-      status: selectedStatus || undefined,
-      priority: selectedPriority || undefined,
-      assignee_id: selectedAssigneeId || undefined,
-      overdue: isOverdueOnly || undefined,
-      sort_by: sortBy,
-      sort_order: sortOrder,
-    });
-    toast.info('Downloading CSV export...');
-    window.open(url, '_blank');
+  const handleExportCsv = async () => {
+    toast.info('Preparing CSV export...');
+    try {
+      await api.downloadTasksCsv({
+        q: search || undefined,
+        project_id: selectedProjectId || undefined,
+        status: selectedStatus || undefined,
+        priority: selectedPriority || undefined,
+        assignee_id: selectedAssigneeId || undefined,
+        overdue: isOverdueOnly || undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      });
+    } catch (err) {
+      toast.error(err.message || 'Could not export the current view.');
+    }
   };
 
   const applyPreset = (presetKey) => {
