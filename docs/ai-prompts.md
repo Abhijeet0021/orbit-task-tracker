@@ -94,5 +94,37 @@ earlier sections were left as prompts rather than filled in, on the grounds that
 they are a record of the author's thinking and inventing them would produce
 answers the author could not defend.
 
+**Prompt 4** — a screenshot of the login page showing "HTTP 500 Internal Server
+Error", and *"resolve this"*.
+
+*What I got wrong first, and it is worth recording.* Reasoning from the code
+alone, I identified a real regression — commit `121d9b5` had silently deleted
+the `mongodb+srv` port-stripping added in `2e07bd3` — and concluded it explained
+the 500. It did not. Reaching the deployed API through a browser showed it was
+healthy and that login returned 200 with a valid token. The regression was real
+and worth fixing, but it was not the cause, and I had presented a plausible
+story as a diagnosis before checking it.
+
+The actual cause was local: no `.env` file, so `MONGODB_URI` was unset, the
+server fell back to `localhost:27017` with nothing listening, `startServer()`
+was called without a `.catch()` so the rejection went unhandled, and the Vite
+dev proxy answered the dead upstream with a bare HTML 500 that the API client
+rendered as `HTTP 500 Internal Server Error`. The message came from the proxy,
+not from the application.
+
+*And then a second one, of my own making.* The `priority_rank` hook added
+earlier in this session was written as `pre('validate', function (next) { …
+next(); })`. Mongoose 9 removed callback-style middleware — hooks are called
+with no arguments — so every `Task` validation threw `next is not a function`
+and the seeder died partway through. It was reproducible in two lines with no
+database at all (`new Task({…}).validate()`), which is how it should have been
+checked before committing rather than after the user hit it.
+
+The lesson worth carrying into the interview: both mistakes came from asserting
+behaviour instead of executing it. The regression looked like a cause because it
+was the kind of thing that *would* cause it; the hook looked correct because it
+matched an older Mongoose API. One `curl` and one two-line script would have
+caught them respectively.
+
 > **Before you submit:** read every file in `docs/`. Anything you cannot explain
 > in your own words should be changed until you can, or removed.
