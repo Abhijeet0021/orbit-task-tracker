@@ -14,12 +14,8 @@ initDatabase();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-const allowedOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) 
-  : '*';
-
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => callback(null, true),
   credentials: true
 }));
 app.use(express.json());
