@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useConfirm } from '../common/ConfirmDialog.jsx';
 import { Modal } from '../common/Modal.jsx';
 import { StatusBadge, PriorityBadge } from '../common/Badge.jsx';
 import { TaskTimeline } from './TaskTimeline.jsx';
@@ -31,6 +32,7 @@ const LIFECYCLE_STEPS = [
 export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
   const { user } = useAuth();
   const toast = useToast();
+  const confirm = useConfirm();
   const [task, setTask] = useState(null);
   const [legalTransitions, setLegalTransitions] = useState([]);
   const [timeline, setTimeline] = useState([]);
@@ -184,7 +186,13 @@ export const TaskDetailModal = ({ taskId, isOpen, onClose, onTaskUpdated }) => {
   };
 
   const handleDeleteTask = async () => {
-    if (!task || !window.confirm(`Are you sure you want to delete task ${task.code}? This action cannot be undone.`)) return;
+    if (!task) return;
+    const ok = await confirm({
+      title: `Delete ${task.code}?`,
+      body: `"${task.title}" will be removed permanently, along with its place in any blocking chains. This cannot be undone.`,
+      confirmLabel: 'Delete task',
+    });
+    if (!ok) return;
     try {
       await api.deleteTask(task.id);
       toast.success(`Task ${task.code} deleted`);

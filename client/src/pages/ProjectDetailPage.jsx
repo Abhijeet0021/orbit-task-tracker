@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
+import { useConfirm } from '../components/common/ConfirmDialog.jsx';
 import { 
   Users, 
   ListTodo, 
@@ -24,6 +26,8 @@ export const ProjectDetailPage = () => {
   const { id } = useParams();
   const projectId = id || '';
   const { user } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -110,19 +114,26 @@ export const ProjectDetailPage = () => {
       await api.addProjectMember(projectId, memberToAdd);
       setIsAddMemberOpen(false);
       setMemberToAdd('');
+      toast.success('Member added to the project');
       loadData();
     } catch (err) {
-      alert(err.message || 'Failed to add member.');
+      toast.error(err.message || 'Could not add the member.');
     }
   };
 
   const handleRemoveMember = async (userId, userName) => {
-    if (!window.confirm(`Remove ${userName} from this project? RULE: This will automatically unassign ${userName} from all tasks in this project.`)) return;
+    const ok = await confirm({
+      title: `Remove ${userName} from this project?`,
+      body: `${userName} will also be unassigned from every task in this project. Their past activity stays in the timeline.`,
+      confirmLabel: 'Remove from project',
+    });
+    if (!ok) return;
     try {
       await api.removeProjectMember(projectId, userId);
+      toast.success(`${userName} removed from the project`);
       loadData();
     } catch (err) {
-      alert(err.message || 'Failed to remove member.');
+      toast.error(err.message || 'Could not remove the member.');
     }
   };
 
@@ -131,28 +142,36 @@ export const ProjectDetailPage = () => {
     try {
       await api.updateProject(projectId, { name: editName, description: editDesc, owner_id: editOwnerId || undefined });
       setIsEditProjectOpen(false);
+      toast.success('Project updated');
       loadData();
     } catch (err) {
-      alert(err.message || 'Failed to update project.');
+      toast.error(err.message || 'Could not update the project.');
     }
   };
 
   const handleArchiveProject = async () => {
-    if (!window.confirm('Archive this project? It will be hidden from active lists.')) return;
+    const ok = await confirm({
+      title: 'Archive this project?',
+      body: 'It will be hidden from the active lists. Its tasks and history are kept, and you can restore it at any time.',
+      confirmLabel: 'Archive project',
+    });
+    if (!ok) return;
     try {
       await api.archiveProject(projectId);
+      toast.success('Project archived');
       loadData();
     } catch (err) {
-      alert(err.message || 'Failed to archive project.');
+      toast.error(err.message || 'Could not archive the project.');
     }
   };
 
   const handleRestoreProject = async () => {
     try {
       await api.restoreProject(projectId);
+      toast.success('Project restored');
       loadData();
     } catch (err) {
-      alert(err.message || 'Failed to restore project.');
+      toast.error(err.message || 'Could not restore the project.');
     }
   };
 
@@ -313,7 +332,8 @@ export const ProjectDetailPage = () => {
         />
       ) : (
         <div className="rounded-3xl bg-white border border-slate-200 shadow-xs overflow-hidden">
-          <table className="w-full text-left border-collapse text-xs">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[46rem] text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
                 <th className="py-3.5 px-4">Task</th>
@@ -398,6 +418,7 @@ export const ProjectDetailPage = () => {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
