@@ -6,6 +6,17 @@ import { TaskLifecycleService } from '../services/taskLifecycle.js';
 import { AuditService } from '../services/auditService.js';
 import { hasProjectAccess } from '../middleware/auth.js';
 
+// Whitelisted sort keys. `priority` maps to the derived numeric rank so that
+// "sort by priority" orders by severity rather than alphabetically.
+const SORT_FIELDS = {
+  updated_at: 'updated_at',
+  created_at: 'created_at',
+  due_date: 'due_date',
+  priority: 'priority_rank',
+  title: 'title',
+  status: 'status'
+};
+
 export class TaskController {
   static async listTasks(req, res, next) {
     try {
@@ -66,15 +77,7 @@ export class TaskController {
         ];
       }
 
-      const sortFieldMap = {
-        updated_at: 'updated_at',
-        created_at: 'created_at',
-        due_date: 'due_date',
-        priority: 'priority',
-        title: 'title',
-        status: 'status'
-      };
-      const sortField = sortFieldMap[sort_by] || 'updated_at';
+      const sortField = SORT_FIELDS[sort_by] || 'updated_at';
       const sortDir = sort_order.toLowerCase() === 'asc' ? 1 : -1;
 
       const pageNum = Math.max(1, parseInt(page, 10) || 1);
@@ -702,7 +705,7 @@ export class TaskController {
       const tasks = await Task.find(filter)
         .populate('project', 'key name')
         .populate('assignees', 'name')
-        .sort({ [sort_by || 'updated_at']: sort_order === 'asc' ? 1 : -1 })
+        .sort({ [SORT_FIELDS[sort_by] || 'updated_at']: sort_order === 'asc' ? 1 : -1 })
         .lean();
 
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
