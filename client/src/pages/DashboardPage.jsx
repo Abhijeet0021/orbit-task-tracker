@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { 
@@ -9,7 +9,8 @@ import {
   TrendingUp, 
   UserCheck, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 import { StatusBadge } from '../components/common/Badge.jsx';
 import { 
@@ -25,28 +26,68 @@ import {
 export const DashboardPage = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        setLoading(true);
-        const res = await api.getDashboardStats();
-        setStats(res);
-      } catch (err) {
-        console.error('Failed to load dashboard stats', err);
-      } finally {
-        setLoading(false);
-      }
+  const loadStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await api.getDashboardStats();
+      setStats(res);
+    } catch (err) {
+      console.error('Failed to load dashboard stats', err);
+      setError(err.message || 'The dashboard could not be loaded.');
+    } finally {
+      setLoading(false);
     }
-    loadStats();
   }, []);
 
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  // A skeleton in the shape of the real page, rather than a line of centred
+  // text on an empty screen — the layout does not jump when the data lands.
   if (loading) {
-    return <div className="py-20 text-center text-slate-400">Loading portfolio dashboard...</div>;
+    return (
+      <div className="space-y-8" aria-busy="true" aria-label="Loading dashboard">
+        <div className="space-y-2">
+          <div className="h-7 w-72 animate-pulse rounded-lg bg-slate-200/70" />
+          <div className="h-4 w-96 animate-pulse rounded bg-slate-100" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="h-[104px] animate-pulse rounded-2xl border border-slate-200 bg-white" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white lg:col-span-2" />
+          <div className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        </div>
+      </div>
+    );
   }
 
-  if (!stats) {
-    return <div className="py-20 text-center text-rose-500">Failed to load dashboard analytics.</div>;
+  if (error || !stats) {
+    return (
+      <div className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xs">
+        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-100 bg-rose-50">
+          <AlertTriangle className="h-5 w-5 text-rose-600" />
+        </div>
+        <h2 className="text-base font-bold text-slate-900">The dashboard didn't load</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+          {error || 'No analytics came back from the server.'}
+        </p>
+        <button
+          type="button"
+          onClick={loadStats}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-95"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Try again
+        </button>
+      </div>
+    );
   }
 
   const kpis = [
@@ -61,12 +102,12 @@ export const DashboardPage = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Executive Portfolio Dashboard</h1>
-          <p className="text-xs text-slate-500 mt-1">Cross-project health, team workload, and delivery trends at a glance.</p>
+          <p className="text-sm text-slate-500 mt-1">Cross-project health, team workload, and delivery trends at a glance.</p>
         </div>
         <div className="flex items-center gap-3">
           <Link
             to="/tasks"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition shadow-sm"
           >
             <span>View All Tasks</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -83,7 +124,7 @@ export const DashboardPage = () => {
             }`}
           >
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{kpi.label}</p>
+              <p className="text-sm font-bold uppercase tracking-wider text-slate-400">{kpi.label}</p>
               <p className={`text-3xl font-black mt-1 ${kpi.color}`}>{kpi.count}</p>
             </div>
             <div className={`p-3.5 rounded-2xl ${kpi.bg}`}>
@@ -101,7 +142,7 @@ export const DashboardPage = () => {
                 <TrendingUp className="w-4 h-4 text-blue-600" />
                 Completed Tasks Over Last 8 Weeks
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Historical delivery velocity by week</p>
+              <p className="text-sm text-slate-400 mt-0.5">Historical delivery velocity by week</p>
             </div>
           </div>
 
@@ -148,7 +189,7 @@ export const DashboardPage = () => {
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
               Portfolio Status Breakdown
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">Distribution across lifecycle stages</p>
+            <p className="text-sm text-slate-400 mt-0.5">Distribution across lifecycle stages</p>
 
             <div className="space-y-3 mt-6">
               {stats.statusBreakdown.map(item => {
@@ -157,7 +198,7 @@ export const DashboardPage = () => {
 
                 return (
                   <div key={item.status} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-sm">
                       <StatusBadge status={item.status} />
                       <span className="font-bold text-slate-700">{item.count} <span className="text-slate-400 font-normal">({pct}%)</span></span>
                     </div>
@@ -178,7 +219,7 @@ export const DashboardPage = () => {
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-500 flex items-center gap-2 mt-4">
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-500 flex items-center gap-2 mt-4">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>Strict server-side validation guarantees valid state transitions.</span>
           </div>
@@ -192,7 +233,7 @@ export const DashboardPage = () => {
               <UserCheck className="w-4 h-4 text-indigo-600" />
               Team Workload & Overdue Allocation
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">Spot overloaded team members and overdue bottlenecks immediately</p>
+            <p className="text-sm text-slate-400 mt-0.5">Spot overloaded team members and overdue bottlenecks immediately</p>
           </div>
         </div>
 
@@ -208,24 +249,24 @@ export const DashboardPage = () => {
             >
               <div className="flex items-center gap-3 mb-3">
                 <div 
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-xs"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-xs"
                   style={{ backgroundColor: person.avatar_color || '#3b82f6' }}
                 >
                   {person.user_name[0]}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-900 truncate">{person.user_name}</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{person.user_role}</p>
+                  <p className="text-sm font-bold text-slate-900 truncate">{person.user_name}</p>
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">{person.user_role}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 text-center">
                 <div className="p-2 rounded-xl bg-white border border-slate-100">
-                  <p className="text-[10px] uppercase font-bold text-slate-400">Active</p>
+                  <p className="text-[11px] uppercase font-bold text-slate-400">Active</p>
                   <p className="text-base font-black text-slate-800">{person.active_tasks_count}</p>
                 </div>
                 <div className={`p-2 rounded-xl border ${person.overdue_tasks_count > 0 ? 'bg-rose-100/50 border-rose-200' : 'bg-white border-slate-100'}`}>
-                  <p className={`text-[10px] uppercase font-bold ${person.overdue_tasks_count > 0 ? 'text-rose-600' : 'text-slate-400'}`}>Overdue</p>
+                  <p className={`text-[11px] uppercase font-bold ${person.overdue_tasks_count > 0 ? 'text-rose-600' : 'text-slate-400'}`}>Overdue</p>
                   <p className={`text-base font-black ${person.overdue_tasks_count > 0 ? 'text-rose-700' : 'text-slate-800'}`}>{person.overdue_tasks_count}</p>
                 </div>
               </div>
