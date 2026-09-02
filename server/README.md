@@ -1,6 +1,6 @@
-# ⚙️ Server (Backend Application & Database Engine)
+# ⚙️ Server (Backend Application & MongoDB Engine)
 
-This directory contains the **Node.js Express REST API**, powered by the Node.js standard library `node:sqlite` database engine with foreign keys and WAL mode.
+This directory contains the **Node.js Express REST API**, powered by **MongoDB (Mongoose ODM)** with strict schema validation, state machine lifecycle transitions, and append-only activity ledgers.
 
 ---
 
@@ -9,31 +9,38 @@ This directory contains the **Node.js Express REST API**, powered by the Node.js
 ```
 server/
 ├── tests/
-│   └── taskTracker.test.js    # 14/14 Automated integration tests (Vitest)
+│   └── taskTracker.test.js    # 14/14 Automated integration tests (Vitest + MongoMemoryServer)
 │
 └── src/
-    ├── index.js               # Express application entry point (port 5001)
+    ├── index.js               # Express application entry point (port 5001) & /api/health
     │
     ├── config/
-    │   └── database.js        # SQLite connection, schema definition & migrations
+    │   └── database.js        # Mongoose connection & mongodb+srv URI port sanitization
+    │
+    ├── models/                # Mongoose Schemas & Models
+    │   ├── User.js            # User accounts & RBAC roles (MANAGER, MEMBER)
+    │   ├── Project.js         # Projects & member associations
+    │   ├── Task.js            # Tasks with assignees, blockers & status enum
+    │   ├── TaskActivity.js    # Immutable append-only audit & comment entries
+    │   └── AlertDismissal.js  # Overdue alert dismissal state per user
     │
     ├── middleware/
-    │   └── auth.js            # JWT verification, RBAC (requireManager, requireProjectAccess)
+    │   └── auth.js            # JWT verification & RBAC authorization middleware
     │
     ├── services/
-    │   ├── taskLifecycle.js   # Finite State Machine & blocker dependency cycle validator
-    │   └── auditService.js    # Immutable append-only activity & comment audit ledger
+    │   ├── taskLifecycle.js   # Finite State Machine & blocker cycle detection algorithm
+    │   └── auditService.js    # Immutable append-only activity & comment ledger
     │
     ├── controllers/
-    │   ├── authController.js       # Login & /api/auth/me persona session
-    │   ├── projectController.js    # Projects CRUD, archiving & member management
-    │   ├── taskController.js       # Tasks CRUD, assignees, blockers & comments
-    │   ├── bulkController.js       # Atomic per-task batch updates with error reporting
-    │   ├── dashboardController.js  # KPI aggregation & 8-week completion cadence
-    │   └── alertController.js      # Overdue alert calculation & resurrection
+    │   ├── authController.js       # Login & /api/auth/me session
+    │   ├── projectController.js    # Projects CRUD, archiving & member auto-unassignment
+    │   ├── taskController.js       # Tasks CRUD, assignees, blockers & CSV export
+    │   ├── bulkController.js       # Atomic batch operations with per-task reporting
+    │   ├── dashboardController.js  # Portfolio KPI aggregations & 8-week cadence
+    │   └── alertController.js      # Overdue SLA alert calculation & resurfacing
     │
     ├── routes/
-    │   └── index.js           # API route registrations and URL endpoints
+    │   └── index.js           # Express API route registrations (/api/*)
     │
     └── seed/
         └── seedData.js        # Realistic demo database seeder (4 projects, 20+ tasks)
@@ -45,13 +52,13 @@ server/
 
 From the project root:
 ```bash
-# Seed the database
+# Seed local or cloud database
 npm run seed
 
-# Start the server in watch mode
+# Start server in watch mode
 npm run dev:server
 
-# Run the test suite
+# Run the integration test suite
 npm test
 ```
 The backend runs on **[http://localhost:5001](http://localhost:5001)**.
