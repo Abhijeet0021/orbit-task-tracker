@@ -117,11 +117,11 @@ npm run dev
 
 ### 1. Database (MongoDB Atlas)
 1. Create a free **M0 Cluster** on [MongoDB Atlas](https://cloud.mongodb.com).
-2. Under **Database Access**, create a user (e.g., `admin` / `Admin2026`).
+2. Under **Database Access**, create a user (e.g., `admin`).
 3. Under **Network Access**, allow access from anywhere (`0.0.0.0/0`).
 4. Copy the connection string:
    ```text
-   mongodb+srv://admin:Admin2026@cluster0.xxxxx.mongodb.net/task_tracker?retryWrites=true&w=majority
+   mongodb+srv://<db_username>:<db_password>@cluster0.xxxxx.mongodb.net/task_tracker?retryWrites=true&w=majority
    ```
 
 ### 2. Backend (Render)
@@ -134,7 +134,7 @@ npm run dev
    - `NODE_ENV`: `production`
    - `PORT`: `5001`
    - `JWT_SECRET`: `orbit-super-secret-jwt-key-2026`
-   - `MONGODB_URI`: `mongodb+srv://admin:Admin2026@cluster0.xxxxx.mongodb.net/task_tracker?retryWrites=true&w=majority`
+   - `MONGODB_URI`: `mongodb+srv://<db_username>:<db_password>@cluster0.xxxxx.mongodb.net/task_tracker?retryWrites=true&w=majority`
    - `CORS_ORIGIN`: `*` *(or your Netlify URL)*
 
 ### 3. Frontend (Netlify)
