@@ -37,8 +37,8 @@ app.use(cors({
       return callback(null, origin);
     }
 
-    // Support Netlify deploy preview domains
-    if (/^https:\/\/[a-z0-9-]+--orbit-task-tracker\.netlify\.app$/.test(origin)) {
+    // Support all Netlify domains and preview builds
+    if (/^https:\/\/[a-z0-9-]+\.netlify\.app$/.test(origin)) {
       return callback(null, origin);
     }
 
