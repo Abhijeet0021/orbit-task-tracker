@@ -66,9 +66,11 @@ const taskSchema = new mongoose.Schema({
 
 export const PRIORITY_RANK = { LOW: 1, MEDIUM: 2, HIGH: 3, URGENT: 4 };
 
-taskSchema.pre('validate', function syncPriorityRank(next) {
+// Mongoose 9 removed callback-style middleware: a hook is called with no
+// arguments and may return a promise. Taking a `next` parameter here throws
+// "next is not a function" on every validate.
+taskSchema.pre('validate', function syncPriorityRank() {
   this.priority_rank = PRIORITY_RANK[this.priority] ?? PRIORITY_RANK.MEDIUM;
-  next();
 });
 
 // Primary unique project task code index
