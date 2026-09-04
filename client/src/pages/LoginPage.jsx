@@ -159,10 +159,22 @@ export const LoginPage = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition shadow-md shadow-blue-500/20"
+              className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-75 transition shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
             >
-              {submitting ? 'Signing In...' : 'Sign In'}
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Signing In...</span>
+                </>
+              ) : (
+                'Sign In'
+              )}
             </button>
+            {submitting && (
+              <p className="text-[11px] text-center text-slate-500 animate-pulse mt-2">
+                Connecting to cloud server...
+              </p>
+            )}
           </form>
         </div>
       </div>

@@ -21,7 +21,7 @@ async function request(endpoint, options = {}) {
   };
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -52,7 +52,7 @@ async function request(endpoint, options = {}) {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new ApiError(408, 'Request timed out. Please check your connection or try again.');
+      throw new ApiError(408, 'Server is taking longer than usual to respond (Render free tier wakes up in ~30s). Please try again.');
     }
     throw err;
   }
